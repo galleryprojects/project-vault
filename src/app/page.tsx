@@ -36,18 +36,37 @@ function VaultCard({ item, onClick, isProcessing, unlockedTiers }: { item: any, 
 
             return (
               <div key={idx} className="min-w-full h-full flex items-center justify-center relative bg-black">
-                 <img 
-                   src={imgObj.file_url} 
-                   alt="Vault asset" 
-                   className={`object-cover w-full h-full transition-all duration-700 ${isImageVisible ? 'opacity-80 group-hover:opacity-100' : 'blur-xl opacity-40 scale-110'}`} 
-                 />
-                 {!isImageVisible && (
-                    <div className="absolute inset-0 flex items-center justify-center opacity-30">
-                      <span className="text-[10px] font-black text-white uppercase tracking-[0.4em] -rotate-12 bg-black/50 px-3 py-1 rounded-full backdrop-blur-md">
-                        Encrypted
-                      </span>
+                <img 
+                  src={imgObj.file_url || undefined} 
+                  alt="Vault asset" 
+                  className={`object-cover w-full h-full transition-all duration-700 ${
+                    isImageVisible 
+                      ? 'opacity-80 group-hover:opacity-100' 
+                      : 'blur-lg opacity-50 scale-105' // Reduced blur for a better teaser effect
+                  }`} 
+                />
+                
+                {/* REPLACED "ENCRYPTED" TEXT WITH PADLOCK SVG */}
+                {!isImageVisible && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="bg-black/30 backdrop-blur-xl p-4 rounded-full border border-white/10 shadow-2xl">
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        width="24" 
+                        height="24" 
+                        viewBox="0 0 24 24" 
+                        fill="none" 
+                        stroke="white" 
+                        strokeWidth="2.5" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      >
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                      </svg>
                     </div>
-                 )}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -145,7 +164,7 @@ export default function Home() {
     }
     setIsVaultLoading(null);
   };
-
+  
   useEffect(() => {
     async function loadData() {
       const [profile, covers, history] = await Promise.all([
@@ -168,9 +187,9 @@ export default function Home() {
         setUnlockedVaultTiers(unlockedMap);
       }
 
+      // --- [FIX: Marketing Teaser Padded to 30 Images] ---
       if (covers) {
         setVaultItems(covers.map((c: any) => {
-          // --- FAKE IMAGE GENERATOR ---
           let mediaArray = c.media || [];
           const currentCount = mediaArray.length;
           
@@ -178,14 +197,14 @@ export default function Home() {
             const fakesNeeded = 30 - currentCount;
             // Create an array of fake images to pad the total to 30
             const fakeMedia = Array.from({ length: fakesNeeded }).map((_, index) => ({
-              // Using a generic dark noise/matrix placeholder. Since it gets blurred, it looks like encrypted data!
-              file_url: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=400&auto=format&fit=crop", 
+              // [FIX] Uses your specific Supabase bucket URL and the new image you uploaded!
+              file_url: "https://ltxdyydmerdqfvsvomwx.supabase.co/storage/v1/object/public/vault-assets/fake/fake.jpg", 
               tier: 99, // High tier so it NEVER gets unblurred on the home page
               display_order: 999 + index
             }));
             mediaArray = [...mediaArray, ...fakeMedia];
           }
-          // ----------------------------
+          // -----------------------------------------------
 
           return {
             id: c.vault_id,
