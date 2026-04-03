@@ -46,6 +46,12 @@ export async function loginUser(formData: FormData) {
   
   const username = formData.get('username') as string;
   const password = formData.get('password') as string;
+
+  // SAFETY CHECK: If username is missing, return early
+  if (!username) {
+    return { error: "Authentication Failed: Username is required." };
+  }
+
   const internalIdentifier = `${username.toLowerCase()}@v.io`;
 
   const { error } = await supabase.auth.signInWithPassword({
