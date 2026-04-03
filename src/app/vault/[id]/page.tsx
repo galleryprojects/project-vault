@@ -124,6 +124,15 @@ export default function VaultInside() {
 
   // --- [3] HANDLERS ---
   const handleTierUnlock = async (tierNum: number, price: number) => {
+    // 1. Ask for confirmation before doing anything
+    const confirmUnlock = window.confirm(`Authorize decryption of Level 0${tierNum} for $${price.toFixed(2)}?`);
+    
+    // 2. If they click "Cancel", stop the function immediately
+    if (!confirmUnlock) {
+      return; 
+    }
+
+    // 3. Proceed with unlocking
     setIsProcessing(true);
     const result = await unlockVault(vaultId, price, tierNum);
     
@@ -138,6 +147,9 @@ export default function VaultInside() {
       if (!expandedTiers.includes(tierNum)) {
         setExpandedTiers(prev => [...prev, tierNum]);
       }
+    } else {
+      // Show an error if they don't have enough credits
+      alert(result.error || "Decryption failed. Please check your balance.");
     }
     setIsProcessing(false);
   };

@@ -37,8 +37,9 @@ function VaultCard({ item, onClick, isProcessing, unlockedTiers }: { item: any, 
             return (
               <div key={idx} className="min-w-full h-full flex items-center justify-center relative bg-black">
                 <img 
-                  src={imgObj.file_url || undefined} 
+                  src={isImageVisible ? imgObj.file_url : `${imgObj.file_url}?width=200&quality=20`}
                   alt="Vault asset" 
+                  loading="lazy"
                   className={`object-cover w-full h-full transition-all duration-700 ${
                     isImageVisible 
                       ? 'opacity-80 group-hover:opacity-100' 
@@ -141,9 +142,17 @@ export default function Home() {
   const handleVaultPurchase = async (vaultId: string) => {
     const ownedTiers = unlockedVaultTiers[vaultId] || [];
     
-    // If they already own Tier 1, just open it!
+    // If they already own Tier 1, just open it! No confirmation needed to open.
     if (ownedTiers.includes(1)) {
       window.open(`/vault/${vaultId}`, '_blank');
+      return; 
+    }
+
+    // [SECURITY FIX] Ask for confirmation before charging $6.00
+    const confirmPurchase = window.confirm(`Authorize initial decryption of ${vaultId.replace(/-/g, ' ').toUpperCase()} for $6.00?`);
+    
+    // If they click "Cancel", stop the function immediately
+    if (!confirmPurchase) {
       return; 
     }
 
@@ -160,7 +169,10 @@ export default function Home() {
       const updated = await getProfile();
       if (updated) setUserProfile(updated);
     } else if (result.error === "Insufficient Credits.") {
+      alert("Decryption failed: Insufficient Credits. Redirecting to deposit.");
       router.push('/deposit');
+    } else {
+      alert(result.error || "Decryption failed.");
     }
     setIsVaultLoading(null);
   };
