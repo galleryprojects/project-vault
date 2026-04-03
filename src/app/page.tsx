@@ -4,9 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getProfile, logoutUser, getVaultCovers, unlockVault } from './actions/auth'; 
 
-// [1] SUB-COMPONENT: VaultCard (With Slider & Purchase Logic)
-function VaultCard({ item, onClick, isProcessing }: { item: any, onClick: () => void, isProcessing: boolean }) {
+// [1] SUB-COMPONENT: VaultCard (With Dynamic Slider Blurring)
+function VaultCard({ item, onClick, isProcessing, unlockedTiers }: { item: any, onClick: () => void, isProcessing: boolean, unlockedTiers: number[] }) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const isUnlocked = unlockedTiers.length > 0; // True if they bought at least initial access
 
   const nextSlide = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -27,37 +28,51 @@ function VaultCard({ item, onClick, isProcessing }: { item: any, onClick: () => 
           className="flex h-full transition-transform duration-500 ease-out" 
           style={{ transform: `translateX(-${currentIndex * 100}%)` }}
         >
-          {item.images.map((img: string, idx: number) => (
-            <div key={idx} className="min-w-full h-full flex items-center justify-center relative bg-black">
-               <img 
-                 src={img} 
-                 alt={`${item.title} asset`} 
-                 className="object-cover w-full h-full opacity-80 group-hover:opacity-100 transition-opacity duration-500" 
-               />
-            </div>
-          ))}
+          {item.images.map((imgObj: any, idx: number) => {
+            // THE MAGIC BLUR LOGIC:
+            // 1. If they own NOTHING (locked), ONLY image 0 is clear.
+            // 2. If they own something, ONLY images in the unlocked tiers are clear.
+            const isImageVisible = (unlockedTiers.length === 0 && idx === 0) || unlockedTiers.includes(imgObj.tier);
+
+            return (
+              <div key={idx} className="min-w-full h-full flex items-center justify-center relative bg-black">
+                 <img 
+                   src={imgObj.file_url} 
+                   alt="Vault asset" 
+                   className={`object-cover w-full h-full transition-all duration-700 ${isImageVisible ? 'opacity-80 group-hover:opacity-100' : 'blur-xl opacity-40 scale-110'}`} 
+                 />
+                 {!isImageVisible && (
+                    <div className="absolute inset-0 flex items-center justify-center opacity-30">
+                      <span className="text-[10px] font-black text-white uppercase tracking-[0.4em] -rotate-12 bg-black/50 px-3 py-1 rounded-full backdrop-blur-md">
+                        Encrypted
+                      </span>
+                    </div>
+                 )}
+              </div>
+            );
+          })}
         </div>
 
         {/* SLIDER CONTROLS */}
         {item.images.length > 1 && (
-          <>
-            <div className="absolute inset-0 flex items-center justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity z-30">
-              <button onClick={prevSlide} className="w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-[10px] shadow-sm hover:bg-white transition-all">←</button>
-              <button onClick={nextSlide} className="w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-[10px] shadow-sm hover:bg-white transition-all">→</button>
-            </div>
-            {/* PROGRESS DOTS */}
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-30">
-              {item.images.map((_: any, idx: number) => (
-                <div 
-                  key={idx} 
-                  className={`h-1 rounded-full transition-all duration-300 ${idx === currentIndex ? 'w-4 bg-[#FF6600]' : 'w-1 bg-white/50'}`}
-                ></div>
-              ))}
-            </div>
-          </>
+          <div className="absolute inset-0 flex items-center justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity z-30">
+            <button onClick={prevSlide} className="w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-[10px] shadow-sm hover:bg-white transition-all">←</button>
+            <button onClick={nextSlide} className="w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-[10px] shadow-sm hover:bg-white transition-all">→</button>
+          </div>
         )}
 
-        {/* HOVER BORDER */}
+        {/* PROGRESS DOTS (Adjusted for 30 items) */}
+        {item.images.length > 1 && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-[2px] z-30 w-[90%] justify-center flex-wrap">
+            {item.images.map((_: any, idx: number) => (
+              <div 
+                key={idx} 
+                className={`h-1 rounded-full transition-all duration-300 ${idx === currentIndex ? 'w-3 bg-[#FF6600]' : 'w-1 bg-white/50'}`}
+              ></div>
+            ))}
+          </div>
+        )}
+
         <div className="absolute inset-0 border-[3px] border-[#FF6600] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20"></div>
       </div>
       
@@ -68,11 +83,12 @@ function VaultCard({ item, onClick, isProcessing }: { item: any, onClick: () => 
         </h3>
         <div className="flex justify-between items-center">
           <div className="flex flex-col leading-none">
-            <span className="text-[14px] font-black text-[#FF6600]">${item.price}</span>
-            <span className="text-[7px] font-bold text-gray-300 uppercase tracking-widest mt-1 italic">Tier 01 Open</span>
+            <span className={`text-[14px] font-black ${isUnlocked ? 'text-[#00FF00]' : 'text-[#FF6600]'}`}>
+              {isUnlocked ? 'OWNED' : `$${item.price}`}
+            </span>
           </div>
-          <button className="bg-black text-white text-[9px] font-black px-4 py-2 rounded-lg group-hover:bg-[#FF6600] transition-colors uppercase tracking-widest">
-            {isProcessing ? 'Wait...' : 'Decrypt'}
+          <button className={`text-white text-[9px] font-black px-4 py-2 rounded-lg transition-colors uppercase tracking-widest flex items-center gap-1.5 ${isUnlocked ? 'bg-black hover:bg-gray-800' : 'bg-black hover:bg-[#FF6600]'}`}>
+            {isProcessing ? '...' : isUnlocked ? '🔓 OPEN' : '🔒 DECRYPT'}
           </button>
         </div>
       </div>
@@ -82,15 +98,16 @@ function VaultCard({ item, onClick, isProcessing }: { item: any, onClick: () => 
 
 export default function Home() {
   const router = useRouter();
-  
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLocked, setIsLocked] = useState(true);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [vaultItems, setVaultItems] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true);
   const [isVaultLoading, setIsVaultLoading] = useState<string | null>(null);
+  
+  // TRACK WHICH TIERS ARE OWNED: e.g., { 'mary': [1, 2], 'test': [1] }
+  const [unlockedVaultTiers, setUnlockedVaultTiers] = useState<Record<string, number[]>>({});
 
-  // --- [1] MASTER UNLOCK ($3.00) ---
   const handleInitializeAccess = async () => {
     const result = await unlockVault("INITIAL_ENTRY", 3.00);
     if (result.success) {
@@ -102,54 +119,91 @@ export default function Home() {
     }
   };
 
-  // --- [2] VAULT PURCHASE & NEW TAB ($6.00) ---
   const handleVaultPurchase = async (vaultId: string) => {
+    const ownedTiers = unlockedVaultTiers[vaultId] || [];
+    
+    // If they already own Tier 1, just open it!
+    if (ownedTiers.includes(1)) {
+      window.open(`/vault/${vaultId}`, '_blank');
+      return; 
+    }
+
     setIsVaultLoading(vaultId);
-    // Charge $6.00 for Tier 1 immediately
     const result = await unlockVault(vaultId, 6.00, 1);
 
     if (result.success) {
+      // Add Tier 1 to their owned list immediately
+      setUnlockedVaultTiers(prev => ({
+        ...prev,
+        [vaultId]: [...(prev[vaultId] || []), 1]
+      }));
       window.open(`/vault/${vaultId}`, '_blank');
       const updated = await getProfile();
       if (updated) setUserProfile(updated);
     } else if (result.error === "Insufficient Credits.") {
       router.push('/deposit');
-    } else {
-      // If already bought, just open it anyway
-      window.open(`/vault/${vaultId}`, '_blank');
     }
     setIsVaultLoading(null);
   };
 
   useEffect(() => {
     async function loadData() {
-      const [profile, covers] = await Promise.all([getProfile(), getVaultCovers()]);
+      const [profile, covers, history] = await Promise.all([
+        getProfile(), 
+        getVaultCovers(),
+        import('./actions/auth').then(m => m.getLedger()) 
+      ]);
+
       if (profile) {
         setUserProfile(profile);
         if (profile.is_unlocked) setIsLocked(false); 
       }
+      
+      if (history) {
+        const unlockedMap: Record<string, number[]> = {};
+        history.filter(item => item.type === 'MEDIA').forEach(item => {
+          if (!unlockedMap[item.mediaUrl]) unlockedMap[item.mediaUrl] = [];
+          if (item.tier) unlockedMap[item.mediaUrl].push(item.tier);
+        });
+        setUnlockedVaultTiers(unlockedMap);
+      }
+
       if (covers) {
-        setVaultItems(covers.map((c) => ({
-          id: c.vault_id,
-          title: c.vault_id.replace(/-/g, ' '),
-          price: "6.00", 
-          images: [c.cover_url] 
-        })));
+        setVaultItems(covers.map((c: any) => {
+          // --- FAKE IMAGE GENERATOR ---
+          let mediaArray = c.media || [];
+          const currentCount = mediaArray.length;
+          
+          if (currentCount > 0 && currentCount < 30) {
+            const fakesNeeded = 30 - currentCount;
+            // Create an array of fake images to pad the total to 30
+            const fakeMedia = Array.from({ length: fakesNeeded }).map((_, index) => ({
+              // Using a generic dark noise/matrix placeholder. Since it gets blurred, it looks like encrypted data!
+              file_url: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=400&auto=format&fit=crop", 
+              tier: 99, // High tier so it NEVER gets unblurred on the home page
+              display_order: 999 + index
+            }));
+            mediaArray = [...mediaArray, ...fakeMedia];
+          }
+          // ----------------------------
+
+          return {
+            id: c.vault_id,
+            title: c.vault_id.replace(/-/g, ' '),
+            price: "6.00", 
+            images: mediaArray 
+          };
+        }));
       }
       setLoading(false);
     }
     loadData();
   }, []);
 
-  if (loading) return (
-    <div className="min-h-screen bg-[#F7F7F5] flex items-center justify-center font-black uppercase text-[10px] tracking-[0.5em]">
-      Syncing Mainframe...
-    </div>
-  );
+  if (loading) return <div className="min-h-screen bg-[#F7F7F5] flex items-center justify-center font-black uppercase text-[10px] tracking-[0.5em]">Syncing Mainframe...</div>;
 
   return (
     <main className="min-h-screen bg-[#F7F7F5] text-[#111] font-sans">
-
       {/* NAVBAR */}
       <nav className="fixed top-0 left-0 w-full h-[64px] bg-white border-b border-gray-200 z-[100] flex items-center px-4">
         <div className="flex w-full max-w-7xl mx-auto items-center justify-between relative">
@@ -159,7 +213,7 @@ export default function Home() {
             <div className="w-6 h-[2px] bg-black"></div>
           </button>
           <div className="absolute left-1/2 -translate-x-1/2">
-            <h1 className="text-sm font-black tracking-[0.3em] uppercase italic">PROJECT-VAULT</h1>
+            <h1 className="text-sm font-black tracking-[0.3em] uppercase italic whitespace-nowrap">PROJECT-VAULT</h1>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex flex-col items-end leading-none">
@@ -198,6 +252,7 @@ export default function Home() {
                 key={item.id} 
                 item={item} 
                 isProcessing={isVaultLoading === item.id}
+                unlockedTiers={unlockedVaultTiers[item.id] || []} // Passes exactly which batches they own
                 onClick={() => handleVaultPurchase(item.id)}
               />
             ))}

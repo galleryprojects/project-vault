@@ -80,12 +80,29 @@ export async function getProfile() {
 
 /**
  * [4] UNLOCK VAULT - TIERED EDITION
- * Handles the $3.00 site-entry fee OR specific vault batch unlocks (e.g., Tier 1, Tier 2).
  */
 export async function unlockVault(vaultId: string, amount: number, tier: number = 1) {
   const supabase = await createClient(); 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not logged in" };
+
+  // --- [NEW FIX: STOP DOUBLE CHARGING] ---
+  // Check if they already bought this specific vault and tier
+  if (vaultId !== "INITIAL_ENTRY") {
+    const { data: existingOrder } = await supabase
+      .from('orders')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('media_url', vaultId)
+      .eq('tier', tier)
+      .single();
+
+    // If we find an order, do NOT charge them. Just return success.
+    if (existingOrder) {
+      return { success: true, message: "Already Unlocked" }; 
+    }
+  }
+  // ---------------------------------------
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -96,6 +113,7 @@ export async function unlockVault(vaultId: string, amount: number, tier: number 
   if (!profile || profile.balance < amount) {
     return { error: "Insufficient Credits." };
   }
+  
 
   // 1. Deduct Credits
   const { error: updateError } = await supabase
@@ -165,6 +183,7 @@ export async function logoutUser() {
 }
 
 /**
+/**
  * [7] GET LEDGER
  * Fetches all transaction history (orders and deposits) for the user.
  */
@@ -187,7 +206,8 @@ export async function getLedger() {
       amount: item.amount,
       status: item.status,
       date: new Date(item.created_at).toLocaleDateString(),
-      mediaUrl: item.media_url
+      mediaUrl: item.media_url,
+      tier: item.tier // [NEW FIX] Export the tier so the homepage knows!
     })),
     ...(depositsRes.data || []).map(item => ({
       id: item.id, 
@@ -197,7 +217,8 @@ export async function getLedger() {
       amount: item.amount || 0,
       status: item.status,
       date: new Date(item.created_at).toLocaleDateString(),
-      mediaUrl: null
+      mediaUrl: null,
+      tier: null
     }))
   ];
 
@@ -221,31 +242,36 @@ export async function getVaultMedia(vaultId: string) {
 }
 
 /**
- * [9] GET VAULT COVERS
- * Fetches the first image for every unique vault to display on the homepage.
+/**
+ * [9] GET VAULT COVERS & SLIDER MEDIA
+ * Fetches ALL images grouped by vault, so the homepage slider works perfectly.
  */
 export async function getVaultCovers() {
   const supabase = await createClient(); 
   const { data, error } = await supabase
     .from('vault_media')
     .select('*')
-    .order('created_at', { ascending: true }); 
+    .order('display_order', { ascending: true }); // Preserves your custom order!
 
   if (error) return [];
   
-  const covers = [];
-  const seen = new Set();
-  
+  const vaultsMap = new Map();
   for (const item of (data || [])) {
-    if (!seen.has(item.vault_id)) {
-      seen.add(item.vault_id);
-      covers.push({
+    if (!vaultsMap.has(item.vault_id)) {
+      vaultsMap.set(item.vault_id, {
         vault_id: item.vault_id,
-        cover_url: item.file_url
+        media: [] // Array to hold all images for the slider
       });
     }
+    // Push every image into the slider array
+    vaultsMap.get(item.vault_id).media.push({
+      file_url: item.file_url,
+      tier: item.tier || 1,
+      display_order: item.display_order || 1
+    });
   }
-  return covers;
+  
+  return Array.from(vaultsMap.values());
 }
 
 /**

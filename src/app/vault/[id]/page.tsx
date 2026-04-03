@@ -14,6 +14,10 @@ export default function VaultInside() {
   const [media, setMedia] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // NEW STATES: For expanding tiers and the full-screen image popup
+  const [expandedTiers, setExpandedTiers] = useState<number[]>([1]); 
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   // --- [1] DATA SYNC ---
   useEffect(() => {
@@ -52,8 +56,19 @@ export default function VaultInside() {
       ]);
       if (newTiers) setUnlockedTiers(newTiers);
       if (updatedProfile) setBalance(updatedProfile.balance);
+      
+      // Auto-expand the tier if they just bought it
+      if (!expandedTiers.includes(tierNum)) {
+        setExpandedTiers(prev => [...prev, tierNum]);
+      }
     }
     setIsProcessing(false);
+  };
+
+  const toggleTier = (tierNum: number) => {
+    setExpandedTiers(prev => 
+      prev.includes(tierNum) ? prev.filter(t => t !== tierNum) : [...prev, tierNum]
+    );
   };
 
   if (loading) return (
@@ -96,53 +111,71 @@ export default function VaultInside() {
 
             return (
               <section key={tierNum} className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                {/* TIER HEADER */}
-                <div className="flex justify-between items-end mb-6 border-b border-gray-100 pb-4">
+                
+                {/* TIER HEADER (NOW CLICKABLE) */}
+                <div 
+                  onClick={() => toggleTier(tierNum)}
+                  className="flex justify-between items-end mb-6 border-b border-gray-100 pb-4 cursor-pointer hover:opacity-70 transition-opacity"
+                >
                   <div className="flex flex-col">
                     <h2 className="text-[11px] font-black uppercase tracking-[0.4em] text-gray-400">Protocol Level 0{tierNum}</h2>
                     <span className={`text-[8px] font-black uppercase tracking-widest mt-1 ${isUnlocked ? 'text-green-500' : 'text-gray-300'}`}>
                       {isUnlocked ? '// ACCESS_GRANTED' : '// DATA_ENCRYPTED'}
                     </span>
                   </div>
+                  <span className="text-[10px] font-black text-gray-300">
+                    {expandedTiers.includes(tierNum) ? '[-]' : '[+]'}
+                  </span>
                 </div>
 
-                {/* MEDIA GRID */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {tierMedia.map((item) => (
-                    <div key={item.id} className="aspect-[3/4] bg-black rounded-2xl relative overflow-hidden border border-black/5 shadow-sm">
-                      <img 
-                        src={item.file_url} 
-                        alt="Vault Content"
-                        className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ${!isUnlocked ? 'blur-3xl opacity-30 scale-110' : 'blur-0 opacity-100 scale-100'}`}
-                      />
-                      {!isUnlocked && (
-                        <div className="absolute inset-0 flex items-center justify-center opacity-20">
-                          <span className="text-[8px] font-black text-white uppercase tracking-[0.5em] -rotate-12">Locked</span>
+                {/* ONLY SHOW CONTENT IF EXPANDED */}
+                {expandedTiers.includes(tierNum) && (
+                  <div className="animate-in slide-in-from-top-2 duration-300">
+                    
+                    {/* MEDIA GRID (NOW CLICKABLE) */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      {tierMedia.map((item) => (
+                        <div 
+                          key={item.id} 
+                          onClick={() => isUnlocked && setSelectedImage(item.file_url)}
+                          className={`aspect-[3/4] bg-black rounded-2xl relative overflow-hidden border border-black/5 shadow-sm ${isUnlocked ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                        >
+                          <img 
+                            src={item.file_url} 
+                            alt="Vault Content"
+                            className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ${!isUnlocked ? 'blur-3xl opacity-30 scale-110' : 'blur-0 opacity-100 scale-100'}`}
+                          />
+                          {!isUnlocked && (
+                            <div className="absolute inset-0 flex items-center justify-center opacity-20">
+                              <span className="text-[8px] font-black text-white uppercase tracking-[0.5em] -rotate-12">Locked</span>
+                            </div>
+                          )}
                         </div>
-                      )}
+                      ))}
                     </div>
-                  ))}
-                </div>
 
-                {/* PAYWALL BLOCK */}
-                {!isUnlocked && (
-                  <div className="mt-8 p-10 bg-black/95 rounded-[32px] border border-white/10 text-center shadow-2xl relative overflow-hidden">
-                    {/* Subtle orange glow effect */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-40 bg-[#FF6600]/10 blur-[60px] rounded-full -z-10"></div>
-                    
-                    <h3 className="text-white font-black uppercase text-[10px] tracking-[0.3em] mb-6">Authorize Decryption</h3>
-                    
-                    <button 
-                      onClick={() => handleTierUnlock(tierNum, price)}
-                      disabled={isProcessing}
-                      className="bg-[#FF6600] text-white px-12 py-4 rounded-full font-black uppercase tracking-widest text-[10px] shadow-[0_10px_30px_rgba(255,102,0,0.3)] hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
-                    >
-                      {isProcessing ? 'Connecting...' : `Unlock Level 0${tierNum} ($${price.toFixed(2)})`}
-                    </button>
-                    
-                    <p className="text-[8px] font-bold text-gray-500 mt-6 uppercase tracking-widest italic">
-                      Fee will be deducted from your total credits
-                    </p>
+                    {/* PAYWALL BLOCK */}
+                    {!isUnlocked && (
+                      <div className="mt-8 p-10 bg-black/95 rounded-[32px] border border-white/10 text-center shadow-2xl relative overflow-hidden">
+                        {/* Subtle orange glow effect */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-40 bg-[#FF6600]/10 blur-[60px] rounded-full -z-10"></div>
+                        
+                        <h3 className="text-white font-black uppercase text-[10px] tracking-[0.3em] mb-6">Authorize Decryption</h3>
+                        
+                        <button 
+                          onClick={() => handleTierUnlock(tierNum, price)}
+                          disabled={isProcessing}
+                          className="bg-[#FF6600] text-white px-12 py-4 rounded-full font-black uppercase tracking-widest text-[10px] shadow-[0_10px_30px_rgba(255,102,0,0.3)] hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                        >
+                          {isProcessing ? 'Connecting...' : `Unlock Level 0${tierNum} ($${price.toFixed(2)})`}
+                        </button>
+                        
+                        <p className="text-[8px] font-bold text-gray-500 mt-6 uppercase tracking-widest italic">
+                          Fee will be deducted from your total credits
+                        </p>
+                      </div>
+                    )}
+
                   </div>
                 )}
               </section>
@@ -150,6 +183,24 @@ export default function VaultInside() {
           })
         )}
       </div>
+
+      {/* FULL SCREEN LIGHTBOX OVERLAY */}
+      {selectedImage && (
+        <div 
+          className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer animate-in fade-in duration-300"
+          onClick={() => setSelectedImage(null)}
+        >
+          <button className="absolute top-6 right-6 text-white font-black text-[10px] tracking-widest uppercase bg-white/10 px-6 py-3 rounded-full hover:bg-white/20 transition-colors">
+            Close [X]
+          </button>
+          <img 
+            src={selectedImage} 
+            alt="Expanded view" 
+            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-300"
+          />
+        </div>
+      )}
+
     </main>
   );
 }
