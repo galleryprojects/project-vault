@@ -1,0 +1,367 @@
+'use client';
+
+import React, { useState } from 'react';
+import { uploadVaultMedia, getAdminVaultStats } from '../../actions/admin';
+
+// Protocol Interface for the Pipeline
+interface VaultEntry {
+  id: string;
+  cover: { file: File; preview: string };
+  slug: string;
+  tier: string;
+  payload: { id: string; file: File; preview: string }[];
+}
+
+interface MediaInjectionProps {
+  setVaultStats: (stats: any[]) => void;
+  setActiveTab: (tab: any) => void;
+}
+
+export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInjectionProps) {
+  // PIPELINE STATES
+  const [uploadMode, setUploadMode] = useState<'SINGLE' | 'MULTI'>('SINGLE');
+  const [vaultStack, setVaultStack] = useState<VaultEntry[]>([]);
+  
+  // ACTIVE FORM STATES
+  const [activeCover, setActiveCover] = useState<{ file: File; preview: string } | null>(null);
+  const [activeSlug, setActiveSlug] = useState('');
+  const [activeTier, setActiveTier] = useState('1');
+  const [activePayload, setActivePayload] = useState<{ id: string; file: File; preview: string }[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleCoverSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setActiveCover({ file, preview: URL.createObjectURL(file) });
+    }
+  };
+
+  const handlePayloadSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files).map(file => ({
+        id: Math.random().toString(36).substr(2, 9),
+        file,
+        preview: URL.createObjectURL(file),
+      }));
+      setActivePayload(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const removePayloadFile = (id: string) => {
+    setActivePayload(prev => {
+      const fileToRemove = prev.find(f => f.id === id);
+      if (fileToRemove) URL.revokeObjectURL(fileToRemove.preview); // Clean memory here
+      return prev.filter(f => f.id !== id);
+    });
+  };
+
+  const removeStackItem = (id: string) => {
+    setVaultStack(prev => {
+      const item = prev.find(v => v.id === id);
+      if (item) {
+        URL.revokeObjectURL(item.cover.preview); // Clean memory here
+        item.payload.forEach(p => URL.revokeObjectURL(p.preview));
+      }
+      return prev.filter(v => v.id !== id);
+    });
+  };
+
+  // --- PIPELINE LOGIC ---
+  const handleAddNewProtocol = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!activeCover || !activeSlug || activePayload.length === 0) {
+      return alert("MISSING_DATA: // ACTIVE_SECTION_INCOMPLETE");
+    }
+
+    const newEntry: VaultEntry = {
+      id: Math.random().toString(36).substr(2, 9),
+      cover: activeCover,
+      slug: activeSlug.toLowerCase().trim(),
+      tier: activeTier,
+      payload: activePayload
+    };
+
+    setVaultStack(prev => [...prev, newEntry]);
+    
+    // RESET ACTIVE FORM FOR NEXT UPLOAD
+    setActiveCover(null);
+    setActiveSlug('');
+    setActivePayload([]);
+  };
+
+  // --- EXPAND_PROTOCOL_LOGIC ---
+  const handleEditStackItem = (id: string) => {
+    const item = vaultStack.find(v => v.id === id);
+    if (!item) return;
+
+    if (activeCover || activeSlug || activePayload.length > 0) {
+      handleAddNewProtocol(new MouseEvent('click') as any); 
+    }
+
+    setActiveCover(item.cover);
+    setActiveSlug(item.slug);
+    setActiveTier(item.tier);
+    setActivePayload(item.payload);
+
+    setVaultStack(prev => prev.filter(v => v.id !== id));
+  };
+
+  const executeSynchronization = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const finalStack = [...vaultStack];
+    if (activeCover && activeSlug && activePayload.length > 0) {
+      finalStack.push({
+        id: 'final',
+        cover: activeCover,
+        slug: activeSlug.toLowerCase().trim(),
+        tier: activeTier,
+        payload: activePayload
+      });
+    }
+
+    if (finalStack.length === 0) return alert("MISSING_DATA: // PIPELINE_EMPTY");
+
+    setIsUploading(true);
+
+    for (const entry of finalStack) {
+      const formData = new FormData();
+      formData.append('vaultId', entry.slug);
+      formData.append('tier', entry.tier);
+      
+      formData.append('files', entry.cover.file);
+      formData.append('slugs', entry.slug);
+      
+      entry.payload.forEach(pf => {
+        formData.append('files', pf.file);
+        formData.append('slugs', entry.slug);
+      });
+
+      const result = await uploadVaultMedia(formData);
+      
+      if (!result.success) {
+        alert(`[ ERROR IN PIPELINE - ${entry.slug} ] ${result.error || 'Upload failed'}`);
+        setIsUploading(false);
+        return; 
+      }
+    }
+    
+    alert(`[ SYSTEM ] SEQUENCE_COMPLETE: All protocols synchronized.`);
+    setVaultStack([]);
+    setActiveCover(null);
+    setActivePayload([]);
+    setActiveSlug('');
+    
+    const stats = await getAdminVaultStats();
+    setVaultStats(stats);
+    setActiveTab('MEDIA_METRICS');
+    setIsUploading(false);
+  };
+
+  // Calculate payload size for active view
+  const totalWeight = activePayload.reduce((acc, curr) => acc + curr.file.size, 0) / (1024 * 1024);
+
+  return (
+    <div className="max-w-4xl animate-in fade-in duration-500 pb-32">
+      <header className="mb-10 border-b border-[#FF6600]/20 pb-6">
+        <h2 className="text-[24px] font-black uppercase tracking-widest text-white">Media Factory</h2>
+        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2">// INJECT_ASSETS_TO_ENCRYPTED_BUCKET</p>
+      </header>
+
+      <form onSubmit={executeSynchronization} className="space-y-10">
+        
+        {/* MODE SELECTOR */}
+        <div className="flex gap-4 mb-10">
+          <button 
+            type="button"
+            onClick={() => { 
+              setUploadMode('SINGLE');
+              setActiveCover(null);
+              setActiveSlug('');
+              setActivePayload([]);
+              setActiveTier('1');
+            }} 
+            className={`flex-1 py-4 text-[10px] font-black uppercase transition-all ${uploadMode === 'SINGLE' ? 'bg-[#FF6600] text-black shadow-[0_0_20px_rgba(255,102,0,0.3)]' : 'border border-[#FF6600]/30 text-gray-500'}`}
+          >
+            [ SINGLE_DROP_MODE ]
+          </button>
+
+          <button 
+            type="button"
+            onClick={() => { 
+              setUploadMode('MULTI');
+              setActiveCover(null);
+              setActiveSlug('');
+              setActivePayload([]);
+              setActiveTier('1');
+            }} 
+            className={`flex-1 py-4 text-[10px] font-black uppercase transition-all ${uploadMode === 'MULTI' ? 'bg-[#FF6600] text-black shadow-[0_0_20px_rgba(255,102,0,0.3)]' : 'border border-[#FF6600]/30 text-gray-500'}`}
+          >
+            [ MULTIPLE_UPLOAD_MODE ]
+          </button>
+        </div>
+
+        {/* THE PIPELINE STACK (COLLAPSED VIEWS) */}
+        {uploadMode === 'MULTI' && vaultStack.length > 0 && (
+          <div className="space-y-3 mb-10">
+            <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-4">// STACKED_PIPELINE</p>
+            {vaultStack.map((v) => (
+              <div 
+                key={v.id} 
+                onClick={() => handleEditStackItem(v.id)}
+                className="bg-black border border-[#FF6600]/40 p-4 flex items-center justify-between group cursor-pointer hover:bg-[#FF6600]/5 transition-all"
+              >
+                <div className="flex items-center gap-6">
+                  <img src={v.cover.preview} className="w-12 h-12 object-cover border border-[#FF6600]/20" alt="cover" />
+                  <div>
+                    <p className="text-[12px] font-black text-white uppercase">{v.slug}</p>
+                    <p className="text-[9px] font-bold text-[#FF6600] uppercase mt-1">TIER_0{v.tier} | {v.payload.length} ASSETS</p>
+                  </div>
+                </div>
+                
+                <button 
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); removeStackItem(v.id); }} 
+                  className="text-red-500 text-[10px] font-black hover:bg-red-500 hover:text-black px-4 py-2 transition-all border border-transparent hover:border-red-500"
+                >
+                  [ DELETE ]
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ACTIVE INGESTION POINT */}
+        <div className="border border-[#FF6600]/20 bg-black/40 p-10 space-y-8 relative">
+          {uploadMode === 'MULTI' && (
+            <div className="absolute top-4 right-6 text-[9px] font-black text-[#FF6600] uppercase tracking-widest animate-pulse">// ACTIVE_FORM</div>
+          )}
+          
+          {/* DISPLAY_0 COVER */}
+          <div className="bg-black border border-[#FF6600]/20 p-6">
+            <label className="text-[10px] font-black uppercase tracking-widest text-white mb-4 block flex justify-between">
+              <span>// PRIMARY_COVER_ASSET (DISPLAY_0)</span>
+              <span className="text-gray-500 text-[8px]">*REQUIRED FOR HOMEPAGE</span>
+            </label>
+            
+            {activeCover ? (
+              <div className="relative w-48 h-48 border border-[#FF6600] group">
+                <img src={activeCover.preview} alt="Cover Preview" className="w-full h-full object-cover opacity-80" />
+                <button 
+                  type="button"
+                  onClick={() => setActiveCover(null)}
+                  className="absolute top-2 right-2 w-6 h-6 bg-black border border-[#FF6600] text-[#FF6600] flex items-center justify-center text-[10px] font-black hover:bg-[#FF6600] hover:text-black transition-colors"
+                >
+                  X
+                </button>
+                <div className="absolute bottom-0 left-0 w-full bg-[#FF6600] text-black text-[8px] font-black text-center py-1 uppercase tracking-widest">
+                  COVER_LOCKED
+                </div>
+              </div>
+            ) : (
+              <div className="relative w-48 h-48 border-2 border-dashed border-[#FF6600]/40 flex flex-col items-center justify-center hover:border-[#FF6600] transition-colors cursor-pointer bg-[#FF6600]/5">
+                <input type="file" onChange={handleCoverSelect} accept="image/*,video/*" className="absolute inset-0 opacity-0 cursor-pointer" />
+                <span className="text-[20px] mb-2 text-[#FF6600]">+</span>
+                <span className="text-[9px] font-bold text-[#FF6600] tracking-widest">STAGE_COVER</span>
+              </div>
+            )}
+          </div>
+
+          {/* MEDIA_METADATA */}
+          <div className="grid grid-cols-2 gap-6 bg-black border border-[#FF6600]/20 p-6">
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-widest text-white mb-3 block">MEDIA_COLLECTION_NAME</label>
+              <input 
+                type="text" 
+                placeholder="e.g. archive-alpha-01"
+                value={activeSlug}
+                onChange={(e) => setActiveSlug(e.target.value)}
+                className="w-full bg-[#0a0a0a] border border-[#FF6600]/30 px-4 py-3 text-white text-xs font-bold outline-none focus:border-[#FF6600]"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-widest text-white mb-3 block">ACCESS_TIER</label>
+              <select 
+                value={activeTier}
+                onChange={(e) => setActiveTier(e.target.value)}
+                className="w-full bg-[#0a0a0a] border border-[#FF6600]/30 px-4 py-3 text-white text-xs font-bold outline-none focus:border-[#FF6600] appearance-none"
+              >
+                <option value="1">TIER_01 ($6.00)</option>
+                <option value="2">TIER_02 ($4.00)</option>
+                <option value="3">TIER_03 ($4.00)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* MEDIA_PAYLOAD_ZONE */}
+          <div>
+            <label className="text-[10px] font-black uppercase tracking-widest text-white mb-3 block">// MEDIA_PAYLOAD_ZONE</label>
+            <div className="relative border-2 border-dashed border-[#FF6600]/40 hover:border-[#FF6600] bg-[#FF6600]/5 transition-all text-center p-16">
+              <input 
+                type="file" 
+                multiple 
+                onChange={handlePayloadSelect}
+                accept="image/*,video/*"
+                className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+              />
+              <div className="pointer-events-none">
+                <p className="text-[12px] font-black text-[#FF6600] uppercase tracking-[0.2em] mb-2">DRAG & DROP ASSETS HERE</p>
+                <p className="text-[9px] text-gray-500 uppercase tracking-widest">BULK INGESTION SUPPORTED</p>
+              </div>
+            </div>
+          </div>
+
+          {/* PREVIEW_BUFFER */}
+          {activePayload.length > 0 && (
+            <div className="border border-[#FF6600]/20 bg-black p-6">
+              <div className="flex justify-between items-center mb-6 border-b border-[#FF6600]/20 pb-4">
+                <span className="text-[10px] font-black text-white tracking-widest uppercase">// PREVIEW_BUFFER</span>
+                <span className="text-[9px] font-bold text-[#FF6600] tracking-widest uppercase">
+                  STAGED: {activePayload.length} ASSETS | WEIGHT: {totalWeight.toFixed(2)} MB
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-4">
+                {activePayload.map((fileObj) => (
+                  <div key={fileObj.id} className="relative group flex flex-col gap-2">
+                    <div className="relative aspect-square border border-[#FF6600]/30 bg-[#0a0a0a]">
+                      <img src={fileObj.preview} alt="staged" className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                      <button 
+                        type="button"
+                        onClick={() => removePayloadFile(fileObj.id)}
+                        className="absolute top-1 right-1 w-5 h-5 bg-black/80 border border-[#FF6600] text-[#FF6600] flex items-center justify-center text-[8px] font-black hover:bg-[#FF6600] hover:text-black transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        X
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* EXECUTION CONTROLS */}
+        <div className="flex gap-4">
+          {uploadMode === 'MULTI' && (
+            <button 
+              type="button"
+              onClick={handleAddNewProtocol}
+              className="flex-1 bg-transparent border border-[#FF6600] text-[#FF6600] py-6 font-black uppercase text-[12px] tracking-[0.2em] hover:bg-[#FF6600]/10 transition-all"
+            >
+              [ + ADD_NEW_VAULT_PROTOCOL ]
+            </button>
+          )}
+          <button 
+            type="submit" 
+            disabled={isUploading || (!activeCover && vaultStack.length === 0)}
+            className={`flex-[2] bg-[#FF6600] text-black py-6 font-black uppercase text-[12px] tracking-[0.3em] hover:bg-white transition-all disabled:opacity-20 disabled:hover:bg-[#FF6600] ${isUploading ? 'animate-pulse' : ''}`}
+          >
+            {isUploading ? '[ SYNCHRONIZING_TO_BUCKET... ]' : '[ EXECUTE_UPLOAD_SEQUENCE ]'}
+          </button>
+        </div>
+
+      </form>
+    </div>
+  );
+}

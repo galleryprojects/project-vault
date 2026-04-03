@@ -384,3 +384,39 @@ export async function addMediaToCollection(vaultId: string, tier: number, files:
 
   return { success: true, count: results.length };
 }
+
+/**
+ * [13] MEDIA_MANAGER: Swap Specific Asset File
+ */
+export async function swapMediaFile(mediaId: string, oldFileUrl: string, newFile: File) {
+  const isAuthorized = await checkAdminBypass();
+  if (!isAuthorized) return { success: false };
+
+  const supabase = getAdminClient();
+
+  // 1. Delete old file from storage
+  const oldPath = oldFileUrl.split('vault-assets/')[1];
+  if (oldPath) {
+    await supabase.storage.from('vault-assets').remove([oldPath]);
+  }
+
+  // 2. Upload new file (keep it in the same "folder" structure)
+  const vaultId = oldPath.split('/')[0];
+  const fileName = `${vaultId}/${Date.now()}-${newFile.name.replace(/\s/g, '_')}`;
+  
+  const { data, error: uploadErr } = await supabase.storage
+    .from('vault-assets')
+    .upload(fileName, newFile);
+
+  if (uploadErr) return { success: false, error: uploadErr.message };
+
+  const { data: { publicUrl } } = supabase.storage.from('vault-assets').getPublicUrl(fileName);
+
+  // 3. Update Database row with new URL
+  const { error: dbErr } = await supabase
+    .from('vault_media')
+    .update({ file_url: publicUrl })
+    .eq('id', mediaId);
+
+  return { success: !dbErr, newUrl: publicUrl };
+}
