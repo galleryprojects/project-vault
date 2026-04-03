@@ -1,11 +1,10 @@
 'use server';
 
-// Fix: We import createClient directly so we can use it everywhere
 import { createClient } from '@/lib/supabaseServer';
-// Fix: We import the specific creator for the Service Role client
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { checkAdminBypass } from './admin-bypass';
 
+// --- PROTOCOL INTERFACES ---
 interface VaultMedia {
   id: string;
   vault_id: string;
@@ -14,10 +13,12 @@ interface VaultMedia {
   created_at?: string;
 }
 
-/**
- * [MASTER KEY] This client has "God Mode" permissions to bypass RLS.
- * It uses the SERVICE_ROLE_KEY from your .env.local
- */
+type AdminUploadResponse = 
+  | { success: true; count: number; message: string }
+  | { success: false; error: string };
+
+// --- ADMIN_CLIENT_BYPASS (GOD_MODE) ---
+// This uses the Service Role Key to bypass all RLS policies.
 const getAdminClient = () => {
   return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,7 +27,7 @@ const getAdminClient = () => {
 };
 
 /**
- * [1] ADMIN DATA: Fetch Master Vault Statistics
+ * [1] MEDIA_METRICS: ARCHIVE_STATS
  */
 export async function getAdminVaultStats() {
   const isAuthorized = await checkAdminBypass();
@@ -40,7 +41,7 @@ export async function getAdminVaultStats() {
     .order('vault_id', { ascending: true });
   
   if (error || !data) {
-    console.error("Admin Stats Error:", error);
+    console.error("ADMIN_ERROR: // STATS_FETCH_FAILURE", error);
     return [];
   }
 
@@ -67,57 +68,68 @@ export async function getAdminVaultStats() {
 }
 
 /**
- * [2] ADMIN: Multi-Image Uploader
- * Uses the Service Role client to force upload through RLS
+ * [2] MEDIA_INJECTION: THE_FACTORY
  */
-export async function uploadVaultMedia(formData: FormData) {
-  const isAuthorized = await checkAdminBypass();
-  if (!isAuthorized) throw new Error("Unauthorized Access");
+export async function uploadVaultMedia(formData: FormData): Promise<AdminUploadResponse> {
+  try {
+    const isAuthorized = await checkAdminBypass();
+    if (!isAuthorized) return { success: false, error: "UNAUTHORIZED_PROTOCOL" };
 
-  const supabase = getAdminClient();
-  
-  const vaultId = formData.get('vaultId') as string;
-  const tier = parseInt(formData.get('tier') as string);
-  const files = formData.getAll('files') as File[];
-
-  const uploadResults = [];
-
-  for (const file of files) {
-    const fileName = `${vaultId}/${Date.now()}-${file.name.replace(/\s/g, '_')}`;
+    const supabase = getAdminClient();
     
-    const { data: storageData, error: storageError } = await supabase.storage
-      .from('vault-assets')
-      .upload(fileName, file, { upsert: true });
+    const globalVaultId = formData.get('vaultId') as string;
+    const tier = parseInt(formData.get('tier') as string);
+    const files = formData.getAll('files') as File[];
+    const slugs = formData.getAll('slugs') as string[];
 
-    if (storageError) {
-      console.error("Storage Error:", storageError);
-      continue;
+    const uploadResults = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const currentVaultId = (slugs[i] || globalVaultId).toLowerCase().trim();
+      
+      // Index 0 is strictly DISPLAY_0 (Cover)
+      const displayOrder = i === 0 ? 0 : 1; 
+
+      const fileName = `${currentVaultId}/${Date.now()}-${file.name.replace(/\s/g, '_')}`;
+      
+      const { data: storageData, error: storageError } = await supabase.storage
+        .from('vault-assets')
+        .upload(fileName, file, { upsert: true });
+
+      if (storageError) {
+        console.error("STORAGE_ERROR: // INJECTION_FAILED", storageError);
+        continue;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('vault-assets')
+        .getPublicUrl(fileName);
+
+      const { error: dbError } = await supabase
+        .from('vault_media')
+        .insert({
+          vault_id: currentVaultId,
+          file_url: publicUrl,
+          tier: tier,
+          display_order: displayOrder
+        });
+
+      if (!dbError) uploadResults.push(publicUrl);
     }
 
-    const { data: { publicUrl } } = supabase.storage
-      .from('vault-assets')
-      .getPublicUrl(fileName);
-
-    const { error: dbError } = await supabase
-      .from('vault_media')
-      .insert({
-        vault_id: vaultId,
-        file_url: publicUrl,
-        tier: tier
-      });
-
-    if (!dbError) uploadResults.push(publicUrl);
+    return { 
+      success: true, 
+      count: uploadResults.length,
+      message: `SYNC_COMPLETE: ${uploadResults.length} assets injected into the mainframe.` 
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message || "INTERNAL_SYSTEM_FAILURE" };
   }
-
-  return { 
-    success: true, 
-    count: uploadResults.length,
-    message: `Successfully processed ${uploadResults.length} images for ${vaultId}.` 
-  };
 }
 
 /**
- * [3] ADMIN: Fetch All Users and Balances
+ * [3] GHOST_REGISTRY: USER_ACCESS
  */
 export async function getAdminUserRegistry() {
   const isAuthorized = await checkAdminBypass();
@@ -131,7 +143,7 @@ export async function getAdminUserRegistry() {
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error("User Registry Error:", error);
+    console.error("REGISTRY_ERROR: // FETCH_FAILURE", error);
     return [];
   }
 
@@ -139,7 +151,7 @@ export async function getAdminUserRegistry() {
 }
 
 /**
- * [4] ADMIN: Manual Balance Adjustment
+ * [4] CREDIT_MANIPULATION: MANUAL_ADJUST
  */
 export async function adjustUserBalance(userId: string, amount: number) {
   const isAuthorized = await checkAdminBypass();
@@ -147,14 +159,14 @@ export async function adjustUserBalance(userId: string, amount: number) {
 
   const supabase = await createClient();
 
-  // Get current balance
   const { data: profile } = await supabase
     .from('profiles')
     .select('balance')
     .eq('id', userId)
     .single();
 
-  const newBalance = (profile?.balance || 0) + amount;
+  const currentBalance = Number(profile?.balance) || 0;
+  const newBalance = currentBalance + Number(amount);
 
   const { error } = await supabase
     .from('profiles')
@@ -165,3 +177,210 @@ export async function adjustUserBalance(userId: string, amount: number) {
   return { success: true, newBalance };
 }
 
+/**
+ * [5] DEPOSIT_VERIFY: INBOUND_MONITOR
+ * Updated to fetch user_id_display for the Admin UI
+ */
+export async function getPendingDeposits() {
+  const isAuthorized = await checkAdminBypass();
+  if (!isAuthorized) return [];
+
+  const supabase = getAdminClient();
+  
+  // We explicitly pull user_id_display from the profile join
+  const { data, error } = await supabase
+    .from('deposits')
+    .select(`
+      *,
+      profiles!user_id (
+        username,
+        user_id_display
+      )
+    `)
+    .eq('status', 'PENDING')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("DEPOSIT_FETCH_ERROR:", error);
+    return [];
+  }
+
+  return data;
+}
+
+/**
+ * [6] DEPOSIT_VERIFY: AUTHORIZE_SYNC
+ * Approves the gift card/apple protocol and injects credits.
+ */
+export async function approveDeposit(depositId: string, userId: string, amount: number) {
+  const isAuthorized = await checkAdminBypass();
+  if (!isAuthorized) return { success: false, error: "UNAUTHORIZED_PROTOCOL" };
+
+  const supabase = getAdminClient();
+
+  // 1. Precise Numeric Calculation (prevents string concatenation errors)
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('balance')
+    .eq('id', userId)
+    .single();
+
+  const currentBalance = Number(profile?.balance) || 0;
+  const injectionAmount = Number(amount);
+  const newBalance = currentBalance + injectionAmount;
+
+  // 2. Execute Credit Influx
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({ balance: newBalance })
+    .eq('id', userId);
+
+  if (profileError) return { success: false, error: "BALANCE_SYNC_FAILED" };
+
+  // 3. Close Deposit Loop
+  const { error: depositError } = await supabase
+    .from('deposits')
+    .update({ status: 'SUCCESS' })
+    .eq('id', depositId);
+
+  if (depositError) return { success: false, error: "DEPOSIT_LOOP_FAILURE" };
+
+  return { success: true, newBalance };
+}
+
+/**
+ * [7] DEPOSIT_VERIFY: REJECT_CLAIM
+ */
+export async function rejectDeposit(depositId: string) {
+  const isAuthorized = await checkAdminBypass();
+  if (!isAuthorized) return { success: false, error: "UNAUTHORIZED_PROTOCOL" };
+
+  const supabase = getAdminClient();
+
+  const { error } = await supabase
+    .from('deposits')
+    .update({ status: 'FAILED' })
+    .eq('id', depositId);
+
+  if (error) return { success: false, error: "REJECTION_PROTOCOL_FAILED" };
+  return { success: true };
+}
+
+
+/**
+ * [8] MEDIA_MANAGER: Fetch Collection Gallery
+ */
+export async function getCollectionMedia(vaultId: string) {
+  const isAuthorized = await checkAdminBypass();
+  if (!isAuthorized) return [];
+
+  const supabase = getAdminClient();
+  const { data, error } = await supabase
+    .from('vault_media')
+    .select('*')
+    .eq('vault_id', vaultId)
+    .order('display_order', { ascending: true });
+
+  if (error) return [];
+  return data;
+}
+
+/**
+ * [9] MEDIA_MANAGER: Update Collection Settings
+ */
+export async function updateCollectionMetadata(oldVaultId: string, newVaultId: string, newTier: number) {
+  const isAuthorized = await checkAdminBypass();
+  if (!isAuthorized) return { success: false };
+
+  const supabase = getAdminClient();
+  const { error } = await supabase
+    .from('vault_media')
+    .update({ 
+      vault_id: newVaultId.toLowerCase().trim(), 
+      tier: newTier 
+    })
+    .eq('vault_id', oldVaultId);
+
+  return { success: !error, error };
+}
+
+/**
+ * [10] MEDIA_MANAGER: Swap Cover Image
+ */
+export async function setMediaAsCover(vaultId: string, mediaId: string) {
+  const isAuthorized = await checkAdminBypass();
+  if (!isAuthorized) return { success: false };
+
+  const supabase = getAdminClient();
+
+  // 1. Reset all assets in this vault to payload status (1)
+  await supabase
+    .from('vault_media')
+    .update({ display_order: 1 })
+    .eq('vault_id', vaultId);
+
+  // 2. Set the chosen asset as primary (0)
+  const { error } = await supabase
+    .from('vault_media')
+    .update({ display_order: 0 })
+    .eq('id', mediaId);
+
+  return { success: !error };
+}
+
+/**
+ * [11] MEDIA_MANAGER: Delete Media Asset
+ */
+export async function deleteMediaAsset(mediaId: string, fileUrl: string) {
+  const isAuthorized = await checkAdminBypass();
+  if (!isAuthorized) return { success: false };
+
+  const supabase = getAdminClient();
+
+  // Extract file path from URL to remove from storage
+  const filePath = fileUrl.split('vault-assets/')[1];
+  if (filePath) {
+    await supabase.storage.from('vault-assets').remove([filePath]);
+  }
+
+  const { error } = await supabase
+    .from('vault_media')
+    .delete()
+    .eq('id', mediaId);
+
+  return { success: !error };
+}
+
+
+/**
+ * [12] MEDIA_MANAGER: Add to Existing Collection
+ */
+export async function addMediaToCollection(vaultId: string, tier: number, files: File[]) {
+  const isAuthorized = await checkAdminBypass();
+  if (!isAuthorized) return { success: false };
+
+  const supabase = getAdminClient();
+  const results = [];
+
+  for (const file of files) {
+    const fileName = `${vaultId}/${Date.now()}-${file.name.replace(/\s/g, '_')}`;
+    const { data: sData, error: sErr } = await supabase.storage
+      .from('vault-assets')
+      .upload(fileName, file);
+
+    if (sErr) continue;
+
+    const { data: { publicUrl } } = supabase.storage.from('vault-assets').getPublicUrl(fileName);
+
+    const { error: dbErr } = await supabase.from('vault_media').insert({
+      vault_id: vaultId,
+      file_url: publicUrl,
+      tier: tier,
+      display_order: 1 // Default as payload
+    });
+
+    if (!dbErr) results.push(publicUrl);
+  }
+
+  return { success: true, count: results.length };
+}
