@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getLedger } from '../actions/auth'; //
 
 // --- TYPES ---
 interface VaultEntry {
@@ -14,11 +15,23 @@ interface VaultEntry {
 }
 
 export default function OrderHistory() {
-  // --- STATE (Ready for Backend) ---
-  const [data, setData] = useState<VaultEntry[]>([]); // This will hold your Supabase data later
+  // --- STATE ---
+  const [data, setData] = useState<VaultEntry[]>([]); 
+  const [loading, setLoading] = useState(true); // Added loading state
   const [timeFilter, setTimeFilter] = useState('7 Days');
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [activeMedia, setActiveMedia] = useState<VaultEntry | null>(null);
+
+  // --- [UPDATE] FETCH REAL DATA ---
+  useEffect(() => {
+    async function syncLedger() {
+      const history = await getLedger(); // Calls your server action
+      // Cast the response to match your VaultEntry interface
+      setData(history as VaultEntry[]);
+      setLoading(false);
+    }
+    syncLedger();
+  }, []);
 
   // --- DERIVED UI LOGIC ---
   const filteredData = data.filter((item) => {
@@ -31,13 +44,22 @@ export default function OrderHistory() {
     .reduce((sum, item) => sum + item.amount, 0)
     .toFixed(2);
 
+  // Show a simple loading state while fetching from Supabase
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-[#F7F7F5] flex items-center justify-center font-black uppercase text-[10px] tracking-[0.5em]">
+        Syncing Ledger...
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[#F7F7F5] pt-24 px-4 font-sans text-black">
       <div className="max-w-3xl mx-auto">
         
-        {/* HEADER SECTION */}
-        <div className="flex flex-col md:flex-col items-end justify-between items-end mb-8 border-b-2 border-gray-200 pb-6 gap-4">
-          <div>
+        {/* HEADER SECTION - Now Aligned Left */}
+        <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-8 border-b-2 border-gray-200 pb-6 gap-4">
+          <div className="text-left">
             <h1 className="text-3xl font-black italic uppercase tracking-tighter">
               [ PROJECT-VAULT ]
             </h1>
@@ -45,7 +67,9 @@ export default function OrderHistory() {
               Encrypted Activity Ledger // 2026_PROTOCOL
             </p>
           </div>
-          <div className="bg-black text-white p-4 rounded-2xl text-right min-w-[180px]">
+          
+          {/* Total Spent remains anchored right on desktop, or stacks right on mobile */}
+          <div className="bg-black text-white p-4 rounded-2xl text-right min-w-[180px] self-end md:self-auto">
             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">
               Total Spent ({timeFilter})
             </p>

@@ -190,7 +190,7 @@ export default function Home() {
             <h2 className="text-xs font-[900] text-white uppercase tracking-[0.2em] mb-0.5">Initialize Access</h2>
             <p className="text-[6px] font-bold text-gray-500 uppercase tracking-widest mb-4">One-Time Lifetime Fee</p>
             <div className="bg-white/5 border border-white/10 rounded-xl py-3 mb-4">
-              <span className="text-xl font-[900] text-[#FF6600] tracking-tighter">$6.00</span>
+              <span className="text-xl font-[900] text-[#FF6600] tracking-tighter">$3.00</span>
               <p className="text-[6px] font-bold text-white/40 uppercase tracking-[0.3em] mt-0.5">Credits Required</p>
             </div>
             <div className="flex flex-col gap-2">

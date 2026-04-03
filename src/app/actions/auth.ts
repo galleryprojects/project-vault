@@ -2,6 +2,9 @@
 
 import { createClient } from '@/lib/supabaseServer';
 
+// [NEW] Helper to create a clean tracking ID (e.g., PV-XJ82K)
+const generateTrackingId = () => `PV-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
 /**
  * [1] SIGN UP - GHOST EMAIL LOGIC
  */
@@ -12,9 +15,9 @@ export async function signUpUser(formData: FormData) {
   const password = formData.get('password') as string;
   const confirmPassword = formData.get('confirmPassword') as string;
 
-  // Security Check: 6 char minimum
-  if (password.length < 6) {
-    return { error: "Security Breach: Passphrase must be at least 6 characters." };
+  // Security Check: 7 char minimum as per UI
+  if (password.length < 7) {
+    return { error: "Security Breach: Passphrase must be at least 7 characters." };
   }
 
   if (password !== confirmPassword) {
@@ -23,7 +26,7 @@ export async function signUpUser(formData: FormData) {
 
   const internalIdentifier = `${username.toLowerCase()}@v.io`;
 
-  const { data, error } = await supabase.auth.signUp({
+  const { error } = await supabase.auth.signUp({
     email: internalIdentifier,
     password,
     options: {
@@ -76,7 +79,7 @@ export async function getProfile() {
 }
 
 /**
- * [4] UNLOCK VAULT - ONE-TIME $6.00 FEE (UPDATED WITH LEDGER LOGGING)
+ * [4] UNLOCK VAULT - $3.00 FEE (UPDATED FOR 'ORDERS' TABLE)
  */
 export async function unlockVault() {
   const supabase = await createClient(); 
@@ -90,29 +93,32 @@ export async function unlockVault() {
     .eq('id', user.id)
     .single();
 
-  if (!profile || profile.balance < 6.00) {
+  if (!profile || profile.balance < 3.00) {
     return { error: "Insufficient Credits. Please Deposit." };
   }
 
-  // Deduct $6.00 and Set Unlocked to TRUE
-  const { error } = await supabase
+  const trackingId = generateTrackingId();
+
+  // 1. Deduct $3.00
+  const { error: updateError } = await supabase
     .from('profiles')
     .update({ 
-      balance: profile.balance - 6.00,
+      balance: profile.balance - 3.00,
       is_unlocked: true 
     })
     .eq('id', user.id);
 
-  if (error) return { error: "Transaction Failed" };
+  if (updateError) return { error: "Transaction Failed" };
   
-  // LOG TO LEDGER (This powers the Order History page)
-  await supabase.from('ledger').insert([{
+  // 2. [CHANGED] LOG TO 'ORDERS' TABLE
+  await supabase.from('orders').insert([{
     user_id: user.id,
-    type: 'MEDIA',
-    title: 'CYBER SET 01 (VIDEO)', // Update this if you have dynamic vault names
+    order_id: trackingId,      // New Column
+    item_type: 'MEDIA',
+    item_name: 'CYBER SET 01 (VIDEO)', 
     amount: 6.00,
     status: 'UNLOCKED',
-    file_name: 'CS_01_VAULT.MP4'
+    media_url: 'CS_01_VAULT.MP4'
   }]);
 
   return { success: true };
@@ -147,7 +153,6 @@ export async function submitDeposit(formData: FormData) {
     }]);
 
   if (error) {
-    console.error("DB Error:", error);
     return { error: "Database Sync Error. Check SQL Constraints." };
   }
   
@@ -163,8 +168,8 @@ export async function logoutUser() {
 }
 
 /**
- * [7] GET LEDGER - FETCH ALL HISTORY FOR ORDER PAGE
- * This pulls from both the 'ledger' and 'deposits' tables.
+ * [7] GET LEDGER - FETCH ALL HISTORY
+ * Updated to match your 'orders' table columns.
  */
 export async function getLedger() {
   const supabase = await createClient();
@@ -172,40 +177,35 @@ export async function getLedger() {
   
   if (!user) return [];
 
-  // Fetch Media buys
-  const { data: ledgerItems } = await supabase
-    .from('ledger')
-    .select('*')
-    .eq('user_id', user.id);
+  // Parallel fetch for speed
+  const [ordersRes, depositsRes] = await Promise.all([
+    supabase.from('orders').select('*').eq('user_id', user.id),
+    supabase.from('deposits').select('*').eq('user_id', user.id)
+  ]);
 
-  // Fetch Money in
-  const { data: depositItems } = await supabase
-    .from('deposits')
-    .select('*')
-    .eq('user_id', user.id);
-
-  // Combine and format for the frontend VaultEntry type
   const history = [
-    ...(ledgerItems || []).map(item => ({
-      id: item.id.toString().slice(0, 8),
+    ...(ordersRes.data || []).map(item => ({
+      id: item.id,
+      displayId: item.order_id || item.id.toString().slice(0, 8), // [CHANGED]
       type: 'MEDIA',
-      title: item.title,
+      title: item.item_name, // [CHANGED]
       amount: item.amount,
       status: item.status,
       date: new Date(item.created_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
-      fileName: item.file_name
+      mediaUrl: item.media_url // [CHANGED]
     })),
-    ...(depositItems || []).map(item => ({
-      id: item.code || 'INTAKE',
+    ...(depositsRes.data || []).map(item => ({
+      id: item.id, 
+      displayId: item.code || 'INTAKE', // Matches the 'displayId' key in orders
       type: 'DEPOSIT',
       title: `${item.platform || 'SYSTEM'} PROTOCOL`,
       amount: item.amount || 0,
       status: item.status,
       date: new Date(item.created_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
-      fileName: null
+      mediaUrl: null
     }))
   ];
 
-  // Sort by newest first
+  // Sort by newest first using the raw timestamp
   return history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
