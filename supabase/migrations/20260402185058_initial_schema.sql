@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS deposits (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Orders Table
+-- Orders Table (Includes order_id and the NEW tier column)
 CREATE TABLE IF NOT EXISTS orders (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
@@ -30,24 +30,29 @@ CREATE TABLE IF NOT EXISTS orders (
   amount NUMERIC,
   status TEXT,
   media_url TEXT,
+  tier INT DEFAULT 1, -- [NEW] Tracks which batch the user bought
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-
--- [1] Create the Media Table (The Shelf)
+-- Vault Media Table (Includes the NEW tier column)
 CREATE TABLE IF NOT EXISTS vault_media (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  vault_id TEXT NOT NULL, -- This links to the URL (e.g., 'cyber-set-01')
-  file_url TEXT NOT NULL, -- The link to your real picture/video
-  media_type TEXT DEFAULT 'IMAGE', -- IMAGE or VIDEO
-  display_order INT DEFAULT 0, -- Order of appearance
+  vault_id TEXT NOT NULL, 
+  file_url TEXT NOT NULL, 
+  media_type TEXT DEFAULT 'IMAGE', 
+  tier INT DEFAULT 1, -- [NEW] Assigns picture to Batch 1 or Batch 2
+  display_order INT DEFAULT 0, 
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- [2] Enable Security
+-- Security Policies
+-- [1] Enable Security (Safe to run multiple times)
 ALTER TABLE vault_media ENABLE ROW LEVEL SECURITY;
 
--- [3] Access Policy: Anyone can view the records 
--- (We lock the actual files in Storage later)
+-- [2] Drop the policy if it exists before creating it again
+-- This prevents the "already exists" error
+DROP POLICY IF EXISTS "Allow public read access" ON vault_media;
+
+-- [3] Create the policy fresh
 CREATE POLICY "Allow public read access" ON vault_media
   FOR SELECT USING (true);

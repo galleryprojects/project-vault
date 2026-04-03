@@ -79,46 +79,46 @@ export async function getProfile() {
 }
 
 /**
- * [4] UNLOCK VAULT - $3.00 FEE (UPDATED FOR 'ORDERS' TABLE)
+ * [4] UNLOCK VAULT - DYNAMIC CONTENT DECRYPTION
+ * Now accepts vaultId and amount so it can handle any vault (e.g., 'mary')
  */
-export async function unlockVault() {
+export async function unlockVault(vaultId: string, amount: number) {
   const supabase = await createClient(); 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not logged in" };
 
-  // Get current balance
   const { data: profile } = await supabase
     .from('profiles')
     .select('balance')
     .eq('id', user.id)
     .single();
 
-  if (!profile || profile.balance < 3.00) {
-    return { error: "Insufficient Credits. Please Deposit." };
+  // Check against the passed amount (e.g., 6.00)
+  if (!profile || profile.balance < amount) {
+    return { error: `Insufficient Credits. $${amount.toFixed(2)} Required.` };
   }
 
   const trackingId = generateTrackingId();
 
-  // 1. Deduct $3.00
+  // 1. Deduct the specific amount for THIS vault
   const { error: updateError } = await supabase
     .from('profiles')
     .update({ 
-      balance: profile.balance - 3.00,
-      is_unlocked: true 
+      balance: profile.balance - amount 
     })
     .eq('id', user.id);
 
   if (updateError) return { error: "Transaction Failed" };
   
-  // 2. [CHANGED] LOG TO 'ORDERS' TABLE
+  // 2. Log the purchase using the dynamic vaultId (e.g., 'mary')
   await supabase.from('orders').insert([{
     user_id: user.id,
-    order_id: trackingId,      // New Column
-    item_type: 'MEDIA',
-    item_name: 'CYBER SET 01 (VIDEO)', 
-    amount: 6.00,
+    order_id: trackingId,
+    item_type: 'MEDIA_SET',
+    item_name: vaultId.toUpperCase().replace(/-/g, ' '), 
+    amount: amount,
     status: 'UNLOCKED',
-    media_url: 'CS_01_VAULT.MP4'
+    media_url: vaultId // Storing the vaultId here so we can check it later
   }]);
 
   return { success: true };
@@ -208,4 +208,79 @@ export async function getLedger() {
 
   // Sort by newest first using the raw timestamp
   return history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+
+/**
+ * [8] GET VAULT MEDIA - FETCH REAL PICTURES/VIDEOS
+ */
+export async function getVaultMedia(vaultId: string) {
+  const supabase = await createClient(); 
+  
+  const { data, error } = await supabase
+    .from('vault_media')
+    .select('*')
+    .eq('vault_id', vaultId)
+    .order('display_order', { ascending: true }); // Keeps your photos in order
+
+  if (error) {
+    console.error("Database fetch error:", error);
+    return [];
+  }
+  
+  return data || [];
+}
+
+/**
+ * [9] GET VAULT COVERS - FOR THE HOMEPAGE DASHBOARD
+ */
+export async function getVaultCovers() {
+  const supabase = await createClient(); 
+  
+  // Fetch all media
+  const { data, error } = await supabase
+    .from('vault_media')
+    .select('*')
+    .order('created_at', { ascending: true }); 
+
+  if (error) {
+    console.error("Database fetch error:", error);
+    return [];
+  }
+  
+  // Filter out duplicates so we only get ONE cover per vault_id
+  const covers = [];
+  const seen = new Set();
+  
+  for (const item of (data || [])) {
+    if (!seen.has(item.vault_id)) {
+      seen.add(item.vault_id);
+      covers.push({
+        vault_id: item.vault_id,
+        cover_url: item.file_url
+      });
+    }
+  }
+  
+  return covers;
+}
+
+
+/**
+ * [10] CHECK ACCESS - NEW
+ * Verifies if the user has already purchased a specific vault
+ */
+export async function checkVaultAccess(vaultId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  const { data } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('media_url', vaultId) // We use media_url to store the vaultId reference
+    .single();
+
+  return !!data; // Returns true if they bought it, false if not
 }

@@ -1,57 +1,68 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { getProfile, unlockVault } from '../../actions/auth'; 
+import { useRouter, useParams } from 'next/navigation';
+import { getProfile, unlockVault, getVaultMedia, checkVaultAccess } from '../../actions/auth'; 
 
 export default function VaultInside() {
   const router = useRouter();
+  const params = useParams();
+  const vaultId = params.id as string; // Grabs 'mary' or 'cyber-set' from the URL
   
   // --- [1] STATE MANAGEMENT ---
   const [balance, setBalance] = useState<number>(0);
   const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
+  const [media, setMedia] = useState<any[]>([]); // NEW: Stores your real pictures
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const thumbnails = Array.from({ length: 20 }, (_, i) => i);
-
   // --- [2] SYNC PROTOCOL (Fetch real data on load) ---
   useEffect(() => {
+    // Change this line in your useEffect
     async function syncVault() {
-      const profile = await getProfile();
-      if (profile) {
-        setBalance(profile.balance || 0);
-        setIsUnlocked(profile.is_unlocked || false);
-      }
+      const [profile, mediaData, hasAccess] = await Promise.all([
+        getProfile(),
+        getVaultMedia(vaultId),
+        checkVaultAccess(vaultId) // NEW: Check if they bought THIS vault
+      ]);
+
+      if (profile) setBalance(profile.balance || 0);
+      if (mediaData) setMedia(mediaData);
+      
+      // This is the fix: isUnlocked now refers to the CONTENT, not the whole site
+      setIsUnlocked(hasAccess); 
+      
       setLoading(false);
     }
-    syncVault();
-  }, []);
+    
+    if (vaultId) syncVault();
+  }, [vaultId]);
 
   // --- [3] UNLOCK HANDLER ---
   const handleUnlock = async () => {
-    setIsProcessing(true);
-    setError(null);
+  setIsProcessing(true);
+  setError(null);
 
-    const result = await unlockVault();
+  // Pass the actual ID (mary) and the price (6.00)
+  const result = await unlockVault(vaultId, 6.00); 
 
-    if (result.error) {
-      setError(result.error);
-      setIsProcessing(false);
-    } else {
-      // Success: Refresh state
-      setIsUnlocked(true);
-      const updatedProfile = await getProfile();
-      if (updatedProfile) setBalance(updatedProfile.balance);
-      setIsProcessing(false);
-    }
-  };
+  if (result.error) {
+    setError(result.error);
+    setIsProcessing(false);
+  } else {
+    setIsUnlocked(true);
+    // Refresh balance
+    const updatedProfile = await getProfile();
+    if (updatedProfile) setBalance(updatedProfile.balance);
+    setIsProcessing(false);
+  }
+};
 
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F7F7F5] flex items-center justify-center font-black uppercase text-[10px] tracking-[0.5em]">
-        Decrypting Profile...
+        Decrypting Vault Protocol...
       </div>
     );
   }
@@ -59,7 +70,7 @@ export default function VaultInside() {
   return (
     <main className="min-h-screen bg-[#F7F7F5] relative overflow-hidden font-sans">
       
-      {/* [NAV BAR] - Dynamic Balance */}
+      {/* [NAV BAR] */}
       <nav className="fixed top-0 left-0 w-full h-16 bg-white border-b border-gray-200 z-[100] flex items-center px-4">
         <div className="flex w-full max-w-7xl mx-auto items-center justify-between relative">
           <div className="flex items-center">
@@ -69,8 +80,10 @@ export default function VaultInside() {
               <div className="w-6 h-0.5 bg-black"></div>
             </div>
           </div>
-          <div className="absolute left-1/2 -translate-x-1/2">
+          <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
             <h1 className="text-[14px] font-[900] tracking-[0.3em] uppercase italic">PROJECT-VAULT</h1>
+            {/* Show the actual Vault ID being viewed */}
+            <span className="text-[7px] font-bold text-gray-400 uppercase tracking-widest">ID: {vaultId}</span>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex flex-col items-end leading-none">
@@ -87,22 +100,40 @@ export default function VaultInside() {
         </div>
       </nav>
 
-      {/* [GRID] - Blur is removed when isUnlocked is true */}
-      <div className={`pt-24 px-4 pb-12 transition-all duration-1000 ${!isUnlocked ? 'blur-[12px] pointer-events-none opacity-40' : 'blur-0 opacity-100'}`}>
+      {/* [DYNAMIC GRID] - Maps over your real database rows */}
+      <div className={`pt-24 px-4 pb-12 transition-all duration-1000 ${!isUnlocked ? 'pointer-events-none' : ''}`}>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
-          {thumbnails.map((i) => (
-            <div key={i} className="aspect-square bg-white rounded-lg relative overflow-hidden border border-black/5 flex items-center justify-center group cursor-pointer hover:border-[#FF6600] transition-colors">
-                <span className="text-[8px] font-black opacity-10 group-hover:opacity-100 group-hover:text-[#FF6600] uppercase tracking-[0.5em] transition-all">
-                  {isUnlocked ? '[ VIEW MEDIA ]' : 'Locked Content'}
-                </span>
+          
+          {media.length === 0 ? (
+            <div className="col-span-full flex flex-col items-center justify-center py-20 opacity-30">
+                <span className="text-4xl mb-4">📂</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.3em]">No Assets found for Vault: {vaultId}</span>
             </div>
-          ))}
+          ) : (
+            media.map((item) => (
+              <div key={item.id} className="aspect-square bg-black rounded-lg relative overflow-hidden border border-black/5 flex items-center justify-center group cursor-pointer hover:border-[#FF6600] transition-colors">
+                  
+                  {/* The Real Image */}
+                  <img 
+                    src={item.file_url} 
+                    alt={`Vault Asset ${item.id}`}
+                    className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ${!isUnlocked ? 'blur-xl scale-110 opacity-40' : 'blur-0 scale-100 opacity-100'}`}
+                  />
+
+                  {/* The Hover Button */}
+                  <span className="relative z-10 text-[8px] font-black opacity-30 group-hover:opacity-100 group-hover:text-[#FF6600] uppercase tracking-[0.5em] transition-all bg-black/60 px-3 py-2 rounded border border-white/10 backdrop-blur-md">
+                    {isUnlocked ? '[ VIEW MEDIA ]' : 'Locked Content'}
+                  </span>
+              </div>
+            ))
+          )}
+
         </div>
       </div>
 
-      {/* [UNLOCK POPUP] - Only visible if vault is locked */}
+      {/* [UNLOCK POPUP] */}
       {!isUnlocked && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-5 bg-black/10 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-5 bg-black/40 backdrop-blur-md">
           <div className="w-full max-w-[400px] bg-black/95 border border-white/10 rounded-[32px] p-10 shadow-[0_30px_100px_rgba(0,0,0,0.8)] text-center relative overflow-hidden animate-in zoom-in-95 duration-300">
             
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-40 bg-[#FF6600]/20 blur-[60px] rounded-full -z-10"></div>
