@@ -9,6 +9,10 @@ function VaultCard({ item, onClick, isProcessing, unlockedTiers }: { item: any, 
   const [currentIndex, setCurrentIndex] = useState(0);
   const isUnlocked = unlockedTiers.length > 0; // True if they bought at least initial access
 
+  const isVideo = (url: string) => {
+  return url?.match(/\.(mp4|webm|ogg|mov)$/i);
+};
+
   const nextSlide = (e: React.MouseEvent) => {
     e.stopPropagation();
     setCurrentIndex((prev) => (prev === item.images.length - 1 ? 0 : prev + 1));
@@ -36,16 +40,27 @@ function VaultCard({ item, onClick, isProcessing, unlockedTiers }: { item: any, 
 
             return (
               <div key={idx} className="min-w-full h-full flex items-center justify-center relative bg-black">
-                <img 
-                  src={isImageVisible ? imgObj.file_url : `${imgObj.file_url}?width=200&quality=20`}
-                  alt="Vault asset" 
-                  loading="lazy"
-                  className={`object-cover w-full h-full transition-all duration-700 ${
-                    isImageVisible 
-                      ? 'opacity-80 group-hover:opacity-100' 
-                      : 'blur-lg opacity-50 scale-105' // Reduced blur for a better teaser effect
-                  }`} 
-                />
+                {isImageVisible ? (
+                  isVideo(imgObj.file_url) ? (
+                    <video 
+                      src={imgObj.file_url} 
+                      className="object-cover w-full h-full opacity-80 group-hover:opacity-100 transition-all duration-700"
+                      autoPlay loop muted playsInline
+                    />
+                  ) : (
+                    <img 
+                      src={imgObj.file_url}
+                      alt="Vault asset" 
+                      loading="lazy"
+                      className="object-cover w-full h-full transition-all duration-700 opacity-80 group-hover:opacity-100" 
+                    />
+                  )
+                ) : (
+                  <img 
+                    src={`${imgObj.file_url}?width=200&quality=20`}
+                    className="object-cover w-full h-full blur-lg opacity-50 scale-105" 
+                  />
+                )}
                 
                 {/* REPLACED "ENCRYPTED" TEXT WITH PADLOCK SVG */}
                 {!isImageVisible && (

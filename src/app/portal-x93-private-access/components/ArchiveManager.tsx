@@ -8,8 +8,11 @@ import {
   deleteMediaAsset, 
   addMediaToCollection,
   getAdminVaultStats,
-  swapMediaFile // Ensure this is in your admin.ts actions
+  swapMediaFile 
 } from '../../actions/admin';
+
+// [FIX] Video Detection Helper
+const isVideo = (url: string) => url?.match(/\.(mp4|webm|ogg|mov)$/i);
 
 interface ArchiveManagerProps {
   vaultStats: any[];
@@ -23,8 +26,6 @@ export default function ArchiveManager({ vaultStats, setVaultStats }: ArchiveMan
   const [editName, setEditName] = useState('');
   const [editTier, setEditTier] = useState('1');
   const [isUploading, setIsUploading] = useState(false);
-  
-  // New state for the "Add Assets" tier
   const [addTier, setAddTier] = useState('1');
 
   useEffect(() => {
@@ -50,7 +51,6 @@ export default function ArchiveManager({ vaultStats, setVaultStats }: ArchiveMan
   const handleAddToCollection = async (files: FileList | null) => {
     if (!files || !selectedCollection) return;
     setIsUploading(true);
-    // Uses the 'addTier' selected in the add box
     const res = await addMediaToCollection(selectedCollection, parseInt(addTier), Array.from(files));
     if (res.success) {
       setCollectionAssets(await getCollectionMedia(selectedCollection));
@@ -117,7 +117,7 @@ export default function ArchiveManager({ vaultStats, setVaultStats }: ArchiveMan
             </div>
           ) : (
             <>
-              {/* THE [+ ADD] BOX WITH TIER SELECTOR */}
+              {/* THE [+ ADD] BOX */}
               <div className="flex flex-col gap-3">
                 <div className="relative aspect-square border-2 border-dashed border-[#FF6600]/20 bg-black flex flex-col items-center justify-center transition-all hover:border-[#FF6600]/50">
                   <input 
@@ -148,8 +148,13 @@ export default function ArchiveManager({ vaultStats, setVaultStats }: ArchiveMan
 
               {collectionAssets.map((asset) => (
                 <div key={asset.id} className="flex flex-col gap-3 animate-in fade-in duration-500">
+                  {/* [FIXED] Media Container handles Video and Image */}
                   <div className={`aspect-square border ${asset.display_order === 0 ? 'border-[#FF6600] shadow-[0_0_15px_rgba(255,102,0,0.2)]' : 'border-[#FF6600]/10'} bg-black relative`}>
-                    <img src={asset.file_url} className="w-full h-full object-cover" alt="asset" />
+                    {isVideo(asset.file_url) ? (
+                      <video src={asset.file_url} className="w-full h-full object-cover" autoPlay loop muted playsInline />
+                    ) : (
+                      <img src={asset.file_url} className="w-full h-full object-cover" alt="asset" />
+                    )}
                     {isUploading && <div className="absolute inset-0 bg-black/60 animate-pulse" />}
                   </div>
 

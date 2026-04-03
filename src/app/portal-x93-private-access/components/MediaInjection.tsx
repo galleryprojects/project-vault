@@ -3,6 +3,9 @@
 import React, { useState } from 'react';
 import { uploadVaultMedia, getAdminVaultStats } from '../../actions/admin';
 
+// [FIX] Video Detection Helper
+const isVideo = (url: string) => url?.match(/\.(mp4|webm|ogg|mov)$/i);
+
 // Protocol Interface for the Pipeline
 interface VaultEntry {
   id: string;
@@ -50,7 +53,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
   const removePayloadFile = (id: string) => {
     setActivePayload(prev => {
       const fileToRemove = prev.find(f => f.id === id);
-      if (fileToRemove) URL.revokeObjectURL(fileToRemove.preview); // Clean memory here
+      if (fileToRemove) URL.revokeObjectURL(fileToRemove.preview);
       return prev.filter(f => f.id !== id);
     });
   };
@@ -59,7 +62,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
     setVaultStack(prev => {
       const item = prev.find(v => v.id === id);
       if (item) {
-        URL.revokeObjectURL(item.cover.preview); // Clean memory here
+        URL.revokeObjectURL(item.cover.preview);
         item.payload.forEach(p => URL.revokeObjectURL(p.preview));
       }
       return prev.filter(v => v.id !== id);
@@ -89,7 +92,6 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
     setActivePayload([]);
   };
 
-  // --- EXPAND_PROTOCOL_LOGIC ---
   const handleEditStackItem = (id: string) => {
     const item = vaultStack.find(v => v.id === id);
     if (!item) return;
@@ -120,7 +122,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
       });
     }
 
-    if (finalStack.length === 0) return alert("MISSING_DATA: // PIPELINE_EMPTY");
+    if (finalStack.length === 0) return alert("PIPELINE_EMPTY");
 
     setIsUploading(true);
 
@@ -137,7 +139,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
         formData.append('slugs', entry.slug);
       });
 
-      const result = await uploadVaultMedia(formData);
+      const result = await uploadVaultMedia(formData); //
       
       if (!result.success) {
         alert(`[ ERROR IN PIPELINE - ${entry.slug} ] ${result.error || 'Upload failed'}`);
@@ -152,13 +154,12 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
     setActivePayload([]);
     setActiveSlug('');
     
-    const stats = await getAdminVaultStats();
+    const stats = await getAdminVaultStats(); //
     setVaultStats(stats);
     setActiveTab('MEDIA_METRICS');
     setIsUploading(false);
   };
 
-  // Calculate payload size for active view
   const totalWeight = activePayload.reduce((acc, curr) => acc + curr.file.size, 0) / (1024 * 1024);
 
   return (
@@ -212,7 +213,12 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
                 className="bg-black border border-[#FF6600]/40 p-4 flex items-center justify-between group cursor-pointer hover:bg-[#FF6600]/5 transition-all"
               >
                 <div className="flex items-center gap-6">
-                  <img src={v.cover.preview} className="w-12 h-12 object-cover border border-[#FF6600]/20" alt="cover" />
+                  {/* Pipeline Preview handles Video and Image */}
+                  {isVideo(v.cover.file.name) ? (
+                    <video src={v.cover.preview} className="w-12 h-12 object-cover border border-[#FF6600]/20" muted />
+                  ) : (
+                    <img src={v.cover.preview} className="w-12 h-12 object-cover border border-[#FF6600]/20" alt="cover" />
+                  )}
                   <div>
                     <p className="text-[12px] font-black text-white uppercase">{v.slug}</p>
                     <p className="text-[9px] font-bold text-[#FF6600] uppercase mt-1">TIER_0{v.tier} | {v.payload.length} ASSETS</p>
@@ -237,7 +243,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
             <div className="absolute top-4 right-6 text-[9px] font-black text-[#FF6600] uppercase tracking-widest animate-pulse">// ACTIVE_FORM</div>
           )}
           
-          {/* DISPLAY_0 COVER */}
+          {/* PRIMARY_COVER_ASSET (DISPLAY_0) */}
           <div className="bg-black border border-[#FF6600]/20 p-6">
             <label className="text-[10px] font-black uppercase tracking-widest text-white mb-4 block flex justify-between">
               <span>// PRIMARY_COVER_ASSET (DISPLAY_0)</span>
@@ -246,10 +252,15 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
             
             {activeCover ? (
               <div className="relative w-48 h-48 border border-[#FF6600] group">
-                <img src={activeCover.preview} alt="Cover Preview" className="w-full h-full object-cover opacity-80" />
+                {/* Active Cover handles Video and Image */}
+                {isVideo(activeCover.file.name) ? (
+                  <video src={activeCover.preview} className="w-full h-full object-cover opacity-80" autoPlay loop muted playsInline />
+                ) : (
+                  <img src={activeCover.preview} alt="Cover Preview" className="w-full h-full object-cover opacity-80" />
+                )}
                 <button 
-                  type="button"
-                  onClick={() => setActiveCover(null)}
+                  type="button" 
+                  onClick={() => setActiveCover(null)} 
                   className="absolute top-2 right-2 w-6 h-6 bg-black border border-[#FF6600] text-[#FF6600] flex items-center justify-center text-[10px] font-black hover:bg-[#FF6600] hover:text-black transition-colors"
                 >
                   X
@@ -300,8 +311,8 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
               <input 
                 type="file" 
                 multiple 
-                onChange={handlePayloadSelect}
-                accept="image/*,video/*"
+                onChange={handlePayloadSelect} 
+                accept="image/*,video/*" 
                 className="absolute inset-0 opacity-0 cursor-pointer z-10" 
               />
               <div className="pointer-events-none">
@@ -325,10 +336,15 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
                 {activePayload.map((fileObj) => (
                   <div key={fileObj.id} className="relative group flex flex-col gap-2">
                     <div className="relative aspect-square border border-[#FF6600]/30 bg-[#0a0a0a]">
-                      <img src={fileObj.preview} alt="staged" className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                      {/* Payload Preview handles Video and Image */}
+                      {isVideo(fileObj.file.name) ? (
+                        <video src={fileObj.preview} className="w-full h-full object-cover opacity-60" autoPlay loop muted playsInline />
+                      ) : (
+                        <img src={fileObj.preview} alt="staged" className="w-full h-full object-cover opacity-60" />
+                      )}
                       <button 
-                        type="button"
-                        onClick={() => removePayloadFile(fileObj.id)}
+                        type="button" 
+                        onClick={() => removePayloadFile(fileObj.id)} 
                         className="absolute top-1 right-1 w-5 h-5 bg-black/80 border border-[#FF6600] text-[#FF6600] flex items-center justify-center text-[8px] font-black hover:bg-[#FF6600] hover:text-black transition-colors opacity-0 group-hover:opacity-100"
                       >
                         X

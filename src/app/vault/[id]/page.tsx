@@ -4,9 +4,15 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { getProfile, unlockVault, getVaultMedia, getUnlockedTiers } from '../../actions/auth'; 
 
+  const isVideo = (url: string) => {
+  return url?.match(/\.(mp4|webm|ogg|mov)$/i);
+};
+
+
 // --- [NEW] SUB-COMPONENT: The Sleek Locked Slider ---
 function LockedTierSlider({ paddedMedia }: { paddedMedia: any[] }) {
   const [currentIndex, setCurrentIndex] = useState(0);
+
 
   const nextSlide = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -27,11 +33,19 @@ function LockedTierSlider({ paddedMedia }: { paddedMedia: any[] }) {
       >
         {paddedMedia.map((item, idx) => (
           <div key={item.id || `fake-${idx}`} className="min-w-full h-full relative flex items-center justify-center bg-black">
-            <img 
-              src={item.file_url || undefined} 
-              alt="Locked Content"
-              className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-40 scale-105"
-            />
+            {isVideo(item.file_url) ? (
+              <video 
+                src={item.file_url} 
+                className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-40 scale-105"
+                autoPlay loop muted playsInline
+              />
+            ) : (
+              <img 
+                src={item.file_url || undefined} 
+                className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-40 scale-105"
+              />
+            )}
+
             {/* PADLOCK OVERLAY */}
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="bg-black/40 backdrop-blur-md p-6 rounded-full border border-white/10 shadow-xl">
@@ -160,6 +174,33 @@ export default function VaultInside() {
     );
   };
 
+ // Add 'e' as an optional second argument
+const handleDownload = async (url: string, e?: React.MouseEvent) => {
+  // If the event exists, stop it from bubbling up to the parent div
+  if (e) e.stopPropagation(); 
+
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    
+    // Extract filename from URL or use a default
+    const fileName = url.split('/').pop() || 'vault-asset';
+    link.download = fileName;
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(blobUrl);
+  } catch (error) {
+    console.error("Download failed:", error);
+    alert("Download failed. Please try again.");
+  }
+};
+
   if (loading) return (
     <div className="min-h-screen bg-[#F7F7F5] flex items-center justify-center font-black uppercase text-[10px] tracking-[0.5em]">
       Decrypting Archive...
@@ -252,17 +293,52 @@ export default function VaultInside() {
                           <div 
                             key={item.id} 
                             onClick={() => setSelectedImage(item.file_url)}
-                            className="aspect-[3/4] bg-black rounded-2xl relative overflow-hidden border border-black/5 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+                            className="group aspect-[3/4] bg-black rounded-2xl relative overflow-hidden border border-black/5 shadow-sm cursor-pointer transition-all"
                           >
-                            <img 
-                              src={item.file_url} 
-                              alt="Vault Content"
-                              className="absolute inset-0 w-full h-full object-cover blur-0 opacity-100 scale-100 transition-all duration-500"
-                            />
+                            {/* MEDIA DISPLAY */}
+                            {isVideo(item.file_url) ? (
+                              <video 
+                                src={item.file_url} 
+                                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                autoPlay loop muted playsInline
+                              />
+                            ) : (
+                              <img 
+                                src={item.file_url} 
+                                alt="Vault Content"
+                                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                          />
+                            )}
+
+                            {/* DOWNLOAD ICON (Bottom Right) */}
+                            <button 
+                              onClick={(e) => handleDownload(item.file_url, e)}
+                              className="absolute bottom-3 right-3 z-30 bg-black/60 backdrop-blur-md p-2 rounded-xl border border-white/10 transition-all hover:bg-[#FF6600] hover:scale-110"                              title="Download"
+                            >
+                              <svg 
+                                xmlns="http://www.w3.org/2000/svg" 
+                                width="16" 
+                                height="16" 
+                                viewBox="0 0 24 24" 
+                                fill="none" 
+                                stroke="white" 
+                                strokeWidth="2.5" 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round"
+                              >
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                              </svg>
+                            </button>
+
+                            {/* OVERLAY TINT ON HOVER */}
+                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
                           </div>
                         ))}
                       </div>
-                    )}
+
+                      )}
 
                   </div>
                 )}
@@ -273,21 +349,49 @@ export default function VaultInside() {
       </div>
 
       {/* FULL SCREEN LIGHTBOX OVERLAY */}
-      {selectedImage && (
-        <div 
-          className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer animate-in fade-in duration-300"
-          onClick={() => setSelectedImage(null)}
-        >
-          <button className="absolute top-6 right-6 text-white font-black text-[10px] tracking-widest uppercase bg-white/10 px-6 py-3 rounded-full hover:bg-white/20 transition-colors z-50">
-            Close [X]
-          </button>
-          <img 
-            src={selectedImage} 
-            alt="Expanded view" 
-            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-300"
-          />
-        </div>
+{selectedImage && (
+  <div 
+    className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 z-[200] animate-in fade-in duration-300"
+    onClick={() => setSelectedImage(null)}
+  >
+    {/* CONTROLS CONTAINER */}
+    <div className="absolute top-6 right-6 flex gap-3 z-[250]">
+      {/* DOWNLOAD BUTTON */}
+      <button 
+        onClick={(e) => { e.stopPropagation(); handleDownload(selectedImage); }}
+        className="text-white font-black text-[10px] tracking-widest uppercase bg-[#FF6600] px-6 py-3 rounded-full hover:bg-white hover:text-black transition-all shadow-lg"
+      >
+        [ DOWNLOAD_ASSET ]
+      </button>
+
+      {/* CLOSE BUTTON */}
+      <button 
+        onClick={() => setSelectedImage(null)}
+        className="text-white font-black text-[10px] tracking-widest uppercase bg-white/10 px-6 py-3 rounded-full hover:bg-white/20 transition-colors"
+      >
+        Close [X]
+      </button>
+    </div>
+
+    {/* CONTENT DISPLAY */}
+    <div className="max-w-full max-h-[90vh] flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+      {isVideo(selectedImage) ? (
+        <video 
+          src={selectedImage} 
+          controls 
+          autoPlay
+          className="max-w-full max-h-[90vh] rounded-lg shadow-2xl animate-in zoom-in-95 duration-300"
+        />
+      ) : (
+        <img 
+          src={selectedImage} 
+          alt="Expanded view" 
+          className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-300"
+        />
       )}
+    </div>
+  </div>
+)}
 
     </main>
   );
