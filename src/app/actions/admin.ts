@@ -210,26 +210,33 @@ export async function getPendingDeposits() {
 
 /**
  * [6] DEPOSIT_VERIFY: AUTHORIZE_SYNC
- * Approves the gift card/apple protocol and injects credits.
+ * Hardened to prevent Loop Failures
+ */
+/**
+ * [6] DEPOSIT_VERIFY: AUTHORIZE_SYNC
+ * Hardened with full exports and error logging
  */
 export async function approveDeposit(depositId: string, userId: string, amount: number) {
   const isAuthorized = await checkAdminBypass();
   if (!isAuthorized) return { success: false, error: "UNAUTHORIZED_PROTOCOL" };
 
+  // Use the Admin Client (Service Role) to bypass all RLS policies
   const supabase = getAdminClient();
 
-  // 1. Precise Numeric Calculation (prevents string concatenation errors)
-  const { data: profile } = await supabase
+  // 1. Fetch current profile balance
+  const { data: profile, error: profileFetchErr } = await supabase
     .from('profiles')
     .select('balance')
     .eq('id', userId)
     .single();
 
+  if (profileFetchErr) return { success: false, error: "PROFILE_FETCH_FAILED" };
+
   const currentBalance = Number(profile?.balance) || 0;
   const injectionAmount = Number(amount);
   const newBalance = currentBalance + injectionAmount;
 
-  // 2. Execute Credit Influx
+  // 2. Update the user balance
   const { error: profileError } = await supabase
     .from('profiles')
     .update({ balance: newBalance })
@@ -237,13 +244,18 @@ export async function approveDeposit(depositId: string, userId: string, amount: 
 
   if (profileError) return { success: false, error: "BALANCE_SYNC_FAILED" };
 
-  // 3. Close Deposit Loop
+  // 3. Close the Deposit Loop
+  // We use the exact 'id' from the deposit record
   const { error: depositError } = await supabase
     .from('deposits')
     .update({ status: 'SUCCESS' })
     .eq('id', depositId);
 
-  if (depositError) return { success: false, error: "DEPOSIT_LOOP_FAILURE" };
+  if (depositError) {
+    // Log the exact database error to the console for debugging
+    console.error("DEPOSIT_LOOP_FAILURE_LOG:", depositError);
+    return { success: false, error: `DEPOSIT_LOOP_FAILURE: ${depositError.message}` };
+  }
 
   return { success: true, newBalance };
 }
