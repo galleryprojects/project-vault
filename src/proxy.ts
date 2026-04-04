@@ -1,16 +1,19 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function middleware(request: NextRequest) {
+/**
+ * [ SECURITY ] THE_INVISIBILITY_CLOAK
+ * Next.js 16 requires the function name to be 'proxy'
+ */
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. Target your secret admin path
+  // 1. Protect the Admin Portal
   if (pathname.startsWith('/portal-x93-private-access')) {
     const session = request.cookies.get('admin_session');
 
-    // 2. If the session cookie is missing or incorrect, redirect to 404
+    // 2. If not verified, ghost the route with a 404
     if (!session || session.value !== 'verified_access_granted') {
-      // We rewrite to 404 so the URL doesn't even change, making it look totally dead
       return NextResponse.rewrite(new URL('/404', request.url));
     }
   }
@@ -18,15 +21,9 @@ export function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
+// Speed Optimization: Don't run this check on images or CSS
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 };
