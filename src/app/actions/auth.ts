@@ -302,3 +302,75 @@ export async function getUnlockedTiers(vaultId: string) {
 
   return data?.map(row => row.tier) || []; 
 }
+
+
+/**
+ * [11] UNLOCK MEDIA ASSET - INDIVIDUAL SELECTION
+ * Replaces tier-based unlocking with single-item reveals for Pay-Per-View videos.
+ */
+export async function unlockMediaAsset(mediaId: string, price: number, title: string) {
+  const supabase = await createClient(); 
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Authentication required." };
+
+  // 1. Check if this specific selection is already owned
+  const { data: existing } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('media_url', mediaId) 
+    .single();
+
+  if (existing) return { success: true, message: "Selection already owned." };
+
+  // 2. Verify Credits
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('balance')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile || profile.balance < price) {
+    return { error: "Insufficient credits for this selection." };
+  }
+
+  // 3. Process Transaction
+  const { error: updateError } = await supabase
+    .from('profiles')
+    .update({ balance: profile.balance - price })
+    .eq('id', user.id);
+
+  if (updateError) return { error: "Transaction could not be processed." };
+
+  // 4. Log the permanent unlock specifically for this video
+  await supabase.from('orders').insert([{
+    user_id: user.id,
+    order_id: `VLT-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
+    item_type: 'SINGLE_MEDIA',
+    item_name: title,
+    amount: price,
+    status: 'UNLOCKED',
+    media_url: mediaId,
+    tier: 99 // Placed high so it doesn't trigger Image Tier unlocks
+  }]);
+
+  return { success: true };
+}
+
+/**
+ * [12] GET UNLOCKED ASSETS
+ * Fetches the IDs of all individual videos the user has unlocked.
+ */
+export async function getUnlockedAssets() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from('orders')
+    .select('media_url')
+    .eq('user_id', user.id)
+    .eq('item_type', 'SINGLE_MEDIA');
+
+  return data?.map(row => row.media_url) || [];
+}
