@@ -209,6 +209,15 @@ export default function Home() {
         return;
       }
 
+      // [ AMNESIA RECOVERY FIX ]
+      // 1. Actually set their profile so the balance shows up!
+      setUserProfile(profile);
+      // 2. If they already paid the $3, drop the lock!
+      if (profile.is_unlocked) {
+        setIsLocked(false);
+      }
+      // ------------------------
+
       if (history) {
         const unlockedMap: Record<string, number[]> = {};
         history.filter(item => item.type === 'MEDIA').forEach(item => {

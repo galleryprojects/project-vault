@@ -85,16 +85,22 @@ export async function getProfile() {
 }
 
 /**
- * [4] UNLOCK VAULT - TIERED EDITION
+ * [4] UNLOCK VAULT - TIERED EDITION (Amnesia Proof)
  */
 export async function unlockVault(vaultId: string, amount: number, tier: number = 1) {
   const supabase = await createClient(); 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not logged in" };
 
-  // --- [NEW FIX: STOP DOUBLE CHARGING] ---
-  // Check if they already bought this specific vault and tier
-  if (vaultId !== "INITIAL_ENTRY") {
+  // --- [ THE IRON-CLAD DOUBLE CHARGE DEFENSE ] ---
+  if (vaultId === "INITIAL_ENTRY") {
+    // 1. Check if they already paid the $3 lifetime fee
+    const { data: profileCheck } = await supabase.from('profiles').select('is_unlocked').eq('id', user.id).single();
+    if (profileCheck?.is_unlocked) {
+      return { success: true, message: "Already Unlocked" };
+    }
+  } else {
+    // 2. Check if they already bought this specific vault/tier
     const { data: existingOrder } = await supabase
       .from('orders')
       .select('id')
@@ -103,12 +109,11 @@ export async function unlockVault(vaultId: string, amount: number, tier: number 
       .eq('tier', tier)
       .single();
 
-    // If we find an order, do NOT charge them. Just return success.
     if (existingOrder) {
       return { success: true, message: "Already Unlocked" }; 
     }
   }
-  // ---------------------------------------
+  // ------------------------------------------------
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -120,20 +125,18 @@ export async function unlockVault(vaultId: string, amount: number, tier: number 
     return { error: "Insufficient Credits." };
   }
   
-
-  // 1. Deduct Credits
+  // Deduct Credits
   const { error: updateError } = await supabase
     .from('profiles')
     .update({ 
       balance: profile.balance - amount,
-      // If this is the master $3.00 fee, we flip the global 'is_unlocked' switch
       ...(vaultId === "INITIAL_ENTRY" ? { is_unlocked: true } : {})
     })
     .eq('id', user.id);
 
   if (updateError) return { error: "Transaction Failed" };
   
-  // 2. Log Specific Tier Purchase in the 'orders' table
+  // Log Purchase
   await supabase.from('orders').insert([{
     user_id: user.id,
     order_id: generateTrackingId(),
@@ -141,12 +144,13 @@ export async function unlockVault(vaultId: string, amount: number, tier: number 
     item_name: vaultId === "INITIAL_ENTRY" ? "INITIAL ACCESS" : `${vaultId.toUpperCase()} - BATCH ${tier}`, 
     amount: amount,
     status: 'UNLOCKED',
-    media_url: vaultId, // Used as a reference for which vault was bought
+    media_url: vaultId,
     tier: tier 
   }]);
 
   return { success: true };
 }
+  
 
 /**
  * [5] SUBMIT DEPOSIT
