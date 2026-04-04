@@ -200,9 +200,11 @@ export default function Home() {
         import('./actions/auth').then(m => m.getLedger()) 
       ]);
 
-      if (profile) {
-        setUserProfile(profile);
-        if (profile.is_unlocked) setIsLocked(false); 
+      // --- [CRITICAL AUTH CHECK] ---
+      if (!profile) {
+        // If no profile, they are a guest. Send to signup immediately.
+        router.push('/signup');
+        return;
       }
       
       if (history) {
