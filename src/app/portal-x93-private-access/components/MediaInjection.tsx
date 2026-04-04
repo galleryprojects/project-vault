@@ -6,13 +6,64 @@ import { uploadVaultMedia, getAdminVaultStats } from '../../actions/admin';
 // [FIX] Video Detection Helper
 const isVideo = (url: string) => url?.match(/\.(mp4|webm|ogg|mov)$/i);
 
+// --- INJECT: PRECISION VIDEO CARD ---
+function VideoPrecisionCard({ fileObj, onUpdate, onRemove }: any) {
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const [duration, setDuration] = React.useState(0);
+  const [localStart, setLocalStart] = React.useState(fileObj.startTime || 0);
+  const [localPrice, setLocalPrice] = React.useState(fileObj.price || "2.00");
+
+  const formatDuration = (s: number) => {
+    const mins = Math.floor(s / 60);
+    const secs = Math.floor(s % 60);
+    return mins > 0 ? `${mins} mins ${secs}s` : `${secs} secs`;
+  };
+
+  React.useEffect(() => {
+    onUpdate(fileObj.id, { startTime: localStart, price: localPrice });
+  }, [localStart, localPrice]);
+
+  return (
+    <div className="bg-[#0a0a0a] border border-[#FF6600]/30 p-4 rounded-xl flex flex-col items-center gap-4 col-span-2">
+      <div className="w-20 h-20 rounded-full overflow-hidden bg-black border border-[#FF6600] relative">
+        <video 
+          ref={videoRef}
+          src={`${fileObj.preview}#t=${localStart},${localStart + 3}`}
+          className="w-full h-full object-cover"
+          autoPlay muted loop playsInline
+          onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+        />
+      </div>
+      <p className="text-[9px] font-black text-[#FF6600] uppercase tracking-tighter">[{formatDuration(duration)} duration]</p>
+      
+      <div className="w-full">
+        <div className="flex justify-between text-[8px] font-bold text-gray-500 uppercase mb-1">
+          <span>{Math.floor(localStart)}s</span>
+          <span>{Math.floor(localStart) + 3}s</span>
+        </div>
+        <input type="range" min="0" max={Math.max(0, duration - 3)} value={localStart}
+          onChange={(e) => setLocalStart(parseInt(e.target.value))}
+          className="w-full h-1 bg-[#FF6600]/20 appearance-none cursor-pointer accent-[#FF6600]" />
+      </div>
+
+      <div className="w-full flex items-center bg-black border border-[#FF6600]/30 px-2 py-1 mt-2">
+        <span className="text-[#FF6600] font-black text-[10px] mr-1">$</span>
+        <input type="number" step="0.01" value={localPrice} onChange={(e) => setLocalPrice(e.target.value)}
+          className="bg-transparent text-white text-[10px] font-bold outline-none w-full" />
+      </div>
+      <button type="button" onClick={() => onRemove(fileObj.id)} className="text-[8px] font-black text-red-500 hover:text-white uppercase mt-2">[ REMOVE ]</button>
+    </div>
+  );
+}
+// --- END INJECT ---
+
 // Protocol Interface for the Pipeline
 interface VaultEntry {
   id: string;
   cover: { file: File; preview: string };
   slug: string;
   tier: string;
-  payload: { id: string; file: File; preview: string }[];
+  payload: { id: string; file: File; preview: string; type: string; startTime: number; price: string }[];
 }
 
 interface MediaInjectionProps {
@@ -29,7 +80,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
   const [activeCover, setActiveCover] = useState<{ file: File; preview: string } | null>(null);
   const [activeSlug, setActiveSlug] = useState('');
   const [activeTier, setActiveTier] = useState('1');
-  const [activePayload, setActivePayload] = useState<{ id: string; file: File; preview: string }[]>([]);
+  const [activePayload, setActivePayload] = useState<{ id: string; file: File; preview: string; type: string; startTime: number; price: string }[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
   const handleCoverSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -45,6 +96,9 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
         id: Math.random().toString(36).substr(2, 9),
         file,
         preview: URL.createObjectURL(file),
+        type: isVideo(file.name) ? 'video' : 'image', 
+        startTime: 0,                                 
+        price: "2.00" 
       }));
       setActivePayload(prev => [...prev, ...newFiles]);
     }
@@ -56,6 +110,10 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
       if (fileToRemove) URL.revokeObjectURL(fileToRemove.preview);
       return prev.filter(f => f.id !== id);
     });
+  };
+
+  const updatePayloadFile = (id: string, updates: any) => {
+    setActivePayload(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
   };
 
   const removeStackItem = (id: string) => {
@@ -137,6 +195,9 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
       entry.payload.forEach(pf => {
         formData.append('files', pf.file);
         formData.append('slugs', entry.slug);
+        formData.append('prices', pf.price || "2.00");
+        formData.append('startTimes', pf.startTime?.toString() || "0");
+        formData.append('tiers', pf.type === 'video' ? "99" : entry.tier); 
       });
 
       const result = await uploadVaultMedia(formData); //
@@ -334,23 +395,25 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
               
               <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-4">
                 {activePayload.map((fileObj) => (
-                  <div key={fileObj.id} className="relative group flex flex-col gap-2">
-                    <div className="relative aspect-square border border-[#FF6600]/30 bg-[#0a0a0a]">
-                      {/* Payload Preview handles Video and Image */}
-                      {isVideo(fileObj.file.name) ? (
-                        <video src={fileObj.preview} className="w-full h-full object-cover opacity-60" autoPlay loop muted playsInline />
-                      ) : (
-                        <img src={fileObj.preview} alt="staged" className="w-full h-full object-cover opacity-60" />
-                      )}
-                      <button 
-                        type="button" 
-                        onClick={() => removePayloadFile(fileObj.id)} 
-                        className="absolute top-1 right-1 w-5 h-5 bg-black/80 border border-[#FF6600] text-[#FF6600] flex items-center justify-center text-[8px] font-black hover:bg-[#FF6600] hover:text-black transition-colors opacity-0 group-hover:opacity-100"
-                      >
-                        X
-                      </button>
-                    </div>
-                  </div>
+                  <React.Fragment key={fileObj.id}>
+                    {fileObj.type === 'video' ? (
+                      <VideoPrecisionCard 
+                        fileObj={fileObj} 
+                        onUpdate={updatePayloadFile} 
+                        onRemove={removePayloadFile} 
+                      />
+                    ) : (
+                      <div className="relative group flex flex-col gap-2">
+                        <div className="relative aspect-square border border-[#FF6600]/30 bg-[#0a0a0a]">
+                          <img src={fileObj.preview} alt="staged" className="w-full h-full object-cover opacity-60" />
+                          <button type="button" onClick={() => removePayloadFile(fileObj.id)} 
+                            className="absolute top-1 right-1 w-5 h-5 bg-black/80 border border-[#FF6600] text-[#FF6600] flex items-center justify-center text-[8px] font-black hover:bg-[#FF6600] hover:text-black transition-colors opacity-0 group-hover:opacity-100">
+                            X
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </React.Fragment>
                 ))}
               </div>
             </div>

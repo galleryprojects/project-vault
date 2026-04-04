@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabaseServer';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { checkAdminBypass } from './admin-bypass';
+import { supabase } from '@/lib/supabase';
 
 // --- PROTOCOL INTERFACES ---
 interface VaultMedia {
@@ -70,6 +71,10 @@ export async function getAdminVaultStats() {
 /**
  * [2] MEDIA_INJECTION: THE_FACTORY
  */
+
+/**
+ * [2] MEDIA_INJECTION: THE_FACTORY (UPDATED FOR PPV)
+ */
 export async function uploadVaultMedia(formData: FormData): Promise<AdminUploadResponse> {
   try {
     const isAuthorized = await checkAdminBypass();
@@ -78,29 +83,28 @@ export async function uploadVaultMedia(formData: FormData): Promise<AdminUploadR
     const supabase = getAdminClient();
     
     const globalVaultId = formData.get('vaultId') as string;
-    const tier = parseInt(formData.get('tier') as string);
     const files = formData.getAll('files') as File[];
     const slugs = formData.getAll('slugs') as string[];
+    // --- NEW: CATCH THE AUTO-PILOT DATA ---
+    const prices = formData.getAll('prices') as string[];
+    const startTimes = formData.getAll('startTimes') as string[];
+    const tiers = formData.getAll('tiers') as string[];
 
     const uploadResults = [];
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const currentVaultId = (slugs[i] || globalVaultId).toLowerCase().trim();
+      const isVideo = file.type.startsWith('video');
       
-      // Index 0 is strictly DISPLAY_0 (Cover)
       const displayOrder = i === 0 ? 0 : 1; 
-
       const fileName = `${currentVaultId}/${Date.now()}-${file.name.replace(/\s/g, '_')}`;
       
       const { data: storageData, error: storageError } = await supabase.storage
         .from('vault-assets')
         .upload(fileName, file, { upsert: true });
 
-      if (storageError) {
-        console.error("STORAGE_ERROR: // INJECTION_FAILED", storageError);
-        continue;
-      }
+      if (storageError) continue;
 
       const { data: { publicUrl } } = supabase.storage
         .from('vault-assets')
@@ -111,7 +115,11 @@ export async function uploadVaultMedia(formData: FormData): Promise<AdminUploadR
         .insert({
           vault_id: currentVaultId,
           file_url: publicUrl,
-          tier: tier,
+          media_type: isVideo ? 'video' : 'image',
+          // --- AUTO-PILOT: Videos are always 99, Images use the selected Tier ---
+          tier: isVideo ? 99 : parseInt(tiers[i] || '1'),
+          price: isVideo ? parseFloat(prices[i] || '2.00') : 0,
+          start_time: isVideo ? parseInt(startTimes[i] || '0') : 0,
           display_order: displayOrder
         });
 
@@ -121,7 +129,7 @@ export async function uploadVaultMedia(formData: FormData): Promise<AdminUploadR
     return { 
       success: true, 
       count: uploadResults.length,
-      message: `SYNC_COMPLETE: ${uploadResults.length} assets injected into the mainframe.` 
+      message: `SYNC_COMPLETE: ${uploadResults.length} assets injected.` 
     };
   } catch (err: any) {
     return { success: false, error: err.message || "INTERNAL_SYSTEM_FAILURE" };
