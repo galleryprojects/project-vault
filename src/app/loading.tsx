@@ -1,4 +1,4 @@
-// src/app/loading.tsx
+//src/app/loading.tsx
 export default function Loading() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center font-mono text-[#FF6600]">
