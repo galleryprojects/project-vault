@@ -1,8 +1,10 @@
 'use client';
 
+
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getProfile, logoutUser, getVaultCovers, unlockVault } from './actions/auth'; 
+import Loading from './loading';
 
 // [1] SUB-COMPONENT: VaultCard (With Dynamic Slider Blurring)
 function VaultCard({ item, onClick, isProcessing, unlockedTiers }: { item: any, onClick: () => void, isProcessing: boolean, unlockedTiers: number[] }) {
@@ -206,7 +208,7 @@ export default function Home() {
         router.push('/signup');
         return;
       }
-      
+
       if (history) {
         const unlockedMap: Record<string, number[]> = {};
         history.filter(item => item.type === 'MEDIA').forEach(item => {
@@ -248,8 +250,9 @@ export default function Home() {
     loadData();
   }, []);
 
-  if (loading) return <div className="min-h-screen bg-[#F7F7F5] flex items-center justify-center font-black uppercase text-[10px] tracking-[0.5em]">Syncing Mainframe...</div>;
-
+    if (loading) {
+    return <Loading />;
+  }
   return (
     <main className="min-h-screen bg-[#F7F7F5] text-[#111] font-sans">
       {/* NAVBAR */}
