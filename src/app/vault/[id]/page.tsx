@@ -444,7 +444,7 @@ export default function VaultInside() {
                               src={item.file_url} 
                               type={item.file_url?.match(/\.(mp4|webm|ogg|mov)$/i) ? 'video' : 'image'}
                               className="absolute inset-0 group-hover:scale-105 transition-transform duration-500" 
-                              priority={index < 2}
+                              priority={index < 12}
                             />
 
                             {/* DOWNLOAD ICON */}

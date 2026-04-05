@@ -40,8 +40,10 @@ CREATE TABLE IF NOT EXISTS vault_media (
   vault_id TEXT NOT NULL, 
   file_url TEXT NOT NULL, 
   media_type TEXT DEFAULT 'IMAGE', 
+  price NUMERIC DEFAULT 0,
   tier INT DEFAULT 1, -- [NEW] Assigns picture to Batch 1 or Batch 2
   display_order INT DEFAULT 0, 
+  start_time INT DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

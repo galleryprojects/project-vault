@@ -39,7 +39,7 @@ function VaultCard({ item, index, onClick, isProcessing, unlockedTiers }: { item
 
             // [THE FIX]: Widen the net. 
             // The cover image (idx === 0) for the first 8 cards (index < 8) gets VIP status.
-            const isPriority = index < 8 && idx === 0;
+            const isPriority = index < 15 && idx === 0;
 
             return (
               <div key={idx} className="min-w-full h-full flex items-center justify-center relative bg-black">
@@ -344,7 +344,7 @@ export default function Home() {
             <h2 className="text-[28px] font-black italic uppercase tracking-tighter leading-none">Active Vaults</h2>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4">
             {vaultItems.map((item, index) => (
               <VaultCard 
                 key={item.id} 

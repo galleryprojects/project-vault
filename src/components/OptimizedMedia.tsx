@@ -33,21 +33,18 @@ export default function OptimizedMedia({ src, alt = "media", type, className = "
     );
   }
 
-  // Inside your OptimizedMedia component
-    return (
+  return (
     <div className={`relative w-full h-full bg-[#111] overflow-hidden ${className}`}>
-        // Inside OptimizedMedia.tsx
-        <Image
+      <Image
         src={optimizedSrc}
         alt={alt}
         fill
         priority={priority}
-        // [THE FIX]: If priority is true, FORCE eager loading. If false, lazy load.
         loading={priority ? 'eager' : 'lazy'} 
         unoptimized
         className={`object-cover transition-all duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
         onLoad={() => setIsLoaded(true)}
-        />
+      />
     </div>
-    );
+  );
 }
