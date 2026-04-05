@@ -36,16 +36,17 @@ export default function OptimizedMedia({ src, alt = "media", type, className = "
   // Inside your OptimizedMedia component
     return (
     <div className={`relative w-full h-full bg-[#111] overflow-hidden ${className}`}>
+        // Inside OptimizedMedia.tsx
         <Image
         src={optimizedSrc}
         alt={alt}
         fill
-        priority={priority} 
-        loading={priority ? 'eager' : 'lazy'}
-        unoptimized 
+        priority={priority}
+        // [THE FIX]: If priority is true, FORCE eager loading. If false, lazy load.
+        loading={priority ? 'eager' : 'lazy'} 
+        unoptimized
         className={`object-cover transition-all duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
         onLoad={() => setIsLoaded(true)}
-        sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
         />
     </div>
     );

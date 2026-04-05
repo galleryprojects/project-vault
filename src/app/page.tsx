@@ -1,6 +1,5 @@
 'use client';
 
-
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getProfile, logoutUser, getVaultCovers, unlockVault } from './actions/auth'; 
@@ -8,7 +7,7 @@ import Loading from './loading';
 import OptimizedMedia from '@/components/OptimizedMedia';
 
 // [1] SUB-COMPONENT: VaultCard (With Dynamic Slider Blurring)
-function VaultCard({ item, onClick, isProcessing, unlockedTiers }: { item: any, onClick: () => void, isProcessing: boolean, unlockedTiers: number[] }) {
+function VaultCard({ item, index, onClick, isProcessing, unlockedTiers }: { item: any, index: number, onClick: () => void, isProcessing: boolean, unlockedTiers: number[] }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const isUnlocked = unlockedTiers.length > 0; // True if they bought at least initial access
 
@@ -36,10 +35,11 @@ function VaultCard({ item, onClick, isProcessing, unlockedTiers }: { item: any, 
           style={{ transform: `translateX(-${currentIndex * 100}%)` }}
         >
           {item.images.map((imgObj: any, idx: number) => {
-            // THE MAGIC BLUR LOGIC:
-            // 1. If they own NOTHING (locked), ONLY image 0 is clear.
-            // 2. If they own something, ONLY images in the unlocked tiers are clear.
             const isImageVisible = (unlockedTiers.length === 0 && idx === 0) || unlockedTiers.includes(imgObj.tier);
+
+            // [THE FIX]: Widen the net. 
+            // The cover image (idx === 0) for the first 8 cards (index < 8) gets VIP status.
+            const isPriority = index < 8 && idx === 0;
 
             return (
               <div key={idx} className="min-w-full h-full flex items-center justify-center relative bg-black">
@@ -48,15 +48,18 @@ function VaultCard({ item, onClick, isProcessing, unlockedTiers }: { item: any, 
                     src={imgObj.file_url}
                     type={isVideo(imgObj.file_url) ? 'video' : 'image'}
                     className="opacity-80 group-hover:opacity-100 transition-all duration-700"
+                    // ADD PRIORITY HERE
+                    priority={isPriority} 
                   />
                 ) : (
                   <OptimizedMedia
                     src={imgObj.file_url}
                     type="image"
                     className="blur-lg opacity-50 scale-105 pointer-events-none"
+                    priority={isPriority} 
                   />
                 )}
-                
+                                
                 {/* REPLACED "ENCRYPTED" TEXT WITH PADLOCK SVG */}
                 {!isImageVisible && (
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -202,14 +205,29 @@ export default function Home() {
         return;
       }
 
-      // [ AMNESIA RECOVERY FIX ]
-      // 1. Actually set their profile so the balance shows up!
+      // [1] SET INITIAL PROFILE DATA
       setUserProfile(profile);
-      // 2. If they already paid the $3, drop the lock!
-      if (profile.is_unlocked) {
+
+      // [2] AUTO-UNLOCK ENGINE
+      // If they aren't unlocked yet, but have $3.00 or more... UNLOCK AUTOMATICALLY.
+      if (!profile.is_unlocked && (profile.balance >= 3.00)) {
+        console.log("SYSTEM: AUTO_INITIALIZING_ACCESS...");
+        const autoResult = await unlockVault("INITIAL_ENTRY", 3.00);
+        
+        if (autoResult.success) {
+          setIsLocked(false);
+          // Update the local state so the balance reflects the -$3.00 immediately
+          setUserProfile({ 
+            ...profile, 
+            is_unlocked: true, 
+            balance: profile.balance - 3.00 
+          });
+        }
+      } 
+      // If they were already unlocked from a previous session
+      else if (profile.is_unlocked) {
         setIsLocked(false);
       }
-      // ------------------------
 
       if (history) {
         const unlockedMap: Record<string, number[]> = {};
@@ -220,24 +238,32 @@ export default function Home() {
         setUnlockedVaultTiers(unlockedMap);
       }
 
-      // --- [FIX: Marketing Teaser Padded to 30 Images] ---
+      // 1. Create a local map so we can use it instantly for sorting
+      let currentUnlockedMap: Record<string, number[]> = {};
+      
+      if (history) {
+        history.filter(item => item.type === 'MEDIA').forEach(item => {
+          if (!currentUnlockedMap[item.mediaUrl]) currentUnlockedMap[item.mediaUrl] = [];
+          if (item.tier) currentUnlockedMap[item.mediaUrl].push(item.tier);
+        });
+        setUnlockedVaultTiers(currentUnlockedMap); // Save for later clicks
+      }
+
+      // 2. Map and Sort the Covers
       if (covers) {
-        setVaultItems(covers.map((c: any) => {
+        const mappedItems = covers.map((c: any) => {
           let mediaArray = c.media || [];
           const currentCount = mediaArray.length;
           
           if (currentCount > 0 && currentCount < 30) {
             const fakesNeeded = 30 - currentCount;
-            // Create an array of fake images to pad the total to 30
             const fakeMedia = Array.from({ length: fakesNeeded }).map((_, index) => ({
-              // [FIX] Uses your specific Supabase bucket URL and the new image you uploaded!
               file_url: "https://ltxdyydmerdqfvsvomwx.supabase.co/storage/v1/object/public/vault-assets/fake/fake.jpg", 
-              tier: 99, // High tier so it NEVER gets unblurred on the home page
+              tier: 99, 
               display_order: 999 + index
             }));
             mediaArray = [...mediaArray, ...fakeMedia];
           }
-          // -----------------------------------------------
 
           return {
             id: c.vault_id,
@@ -245,8 +271,22 @@ export default function Home() {
             price: "6.00", 
             images: mediaArray 
           };
-        }));
+        });
+
+        // THE PRIORITY SORT ENGINE:
+        // We look at the 'currentUnlockedMap' we just built.
+        // If they own it, it gets a score of 1. If locked, score of 0.
+        // Sorts descending so all 1s (Owned) jump to the very beginning.
+        const sortedItems = mappedItems.sort((a, b) => {
+          const aOwned = currentUnlockedMap[a.id] ? 1 : 0;
+          const bOwned = currentUnlockedMap[b.id] ? 1 : 0;
+          return bOwned - aOwned; 
+        });
+
+        setVaultItems(sortedItems);
       }
+
+
       setLoading(false);
     }
     loadData();
@@ -284,8 +324,9 @@ export default function Home() {
           <div className="p-8">
             <button onClick={() => setIsMenuOpen(false)} className="text-[10px] font-black text-gray-400 mb-10 uppercase tracking-widest">✕ CLOSE</button>
             <nav className="flex flex-col gap-6 text-[22px] font-bold uppercase italic">
-              <a href="/" className="border-b-4 border-black w-fit">Main</a>
-              <a href="/orders" className="text-gray-300">Archive</a>
+              <a href="/" className="border-b-4 border-black w-fit">Home</a>
+              <a href="/orders" className="text-gray-300">Order Records</a>
+              <a href="/account" className="border-b-4 border-black w-fit">Profile</a>
               <button onClick={async () => { await logoutUser(); window.location.href = '/login'; }} className="mt-12 text-xs font-black text-red-500 uppercase tracking-widest text-left pt-6 border-t border-gray-100">Terminate Session</button>
             </nav>
           </div>
@@ -295,21 +336,28 @@ export default function Home() {
       {/* BLUR WRAPPER */}
       <div className={`transition-all duration-1000 ${isLocked ? 'blur-[8px] brightness-[0.5] pointer-events-none' : 'blur-0'}`}>
         <div className="pt-28 px-4 pb-12 max-w-7xl mx-auto">
-          <div className="mb-8 border-b-2 border-gray-100 pb-4">
+          {/* THE FIX 2: Added "Hello Username" above the title */}
+          <div className="mb-8 border-b-2 border-gray-100 pb-4 flex flex-col gap-2">
+            <h1 className="text-[20px] font-black uppercase tracking-widest text-red-400">
+              Hello 💋 {userProfile?.username || 'GHOST'}!
+            </h1>
             <h2 className="text-[28px] font-black italic uppercase tracking-tighter leading-none">Active Vaults</h2>
           </div>
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {vaultItems.map((item) => (
+            {vaultItems.map((item, index) => (
               <VaultCard 
                 key={item.id} 
                 item={item} 
+                index={index} // [FIX] Passing the index prop here
                 isProcessing={isVaultLoading === item.id}
                 unlockedTiers={unlockedVaultTiers[item.id] || []} // Passes exactly which batches they own
                 onClick={() => handleVaultPurchase(item.id)}
               />
             ))}
+
           </div>
+
         </div>
       </div>
 
