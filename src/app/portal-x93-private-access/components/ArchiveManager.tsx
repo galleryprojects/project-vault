@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
+import OptimizedMedia from '@/components/OptimizedMedia';
+
 import { 
   getCollectionMedia, 
   updateCollectionMetadata, 
@@ -12,6 +14,7 @@ import {
   updateAssetMetadata // Assuming this exists or we'll loop in sync
 } from '../../actions/admin';
 
+
 const isVideo = (url: string) => url?.match(/\.(mp4|webm|ogg|mov)$/i);
 
 export default function ArchiveManager({ vaultStats, setVaultStats }: any) {
@@ -19,7 +22,7 @@ export default function ArchiveManager({ vaultStats, setVaultStats }: any) {
   const [collectionAssets, setCollectionAssets] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [editName, setEditName] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
+  const [uploadingTier, setUploadingTier] = useState<number | null>(null);
   
   // Track changes made to video prices and start times locally
   const [pendingChanges, setPendingChanges] = useState<Record<string, { price: string, start_time: number }>>({});
@@ -39,55 +42,78 @@ export default function ArchiveManager({ vaultStats, setVaultStats }: any) {
     }));
   };
 
-  const handleGlobalSync = async () => {
-    if (!selectedCollection || Object.keys(pendingChanges).length === 0) {
-      return alert("NO_CHANGES_STAGED");
-    }
+ const handleGlobalSync = async () => {
+    const changeCount = Object.keys(pendingChanges).length;
+    if (!selectedCollection || changeCount === 0) return alert("NO_CHANGES_STAGED");
 
-    setIsUploading(true);
+    // SAFETY GATE: Confirm changes before hitting the DB
+    const isConfirmed = window.confirm(`CONFIRM_SYNC: Apply ${changeCount} metadata updates to this vault?`);
+    if (!isConfirmed) return;
+
+    setUploadingTier(0); // Lock UI to Global Sync state
     
     try {
-      // Loop through every video you tweaked and update them in parallel
       const syncPromises = Object.entries(pendingChanges).map(([id, data]) => 
         updateAssetMetadata(id, data.price, data.start_time)
       );
 
       await Promise.all(syncPromises);
       
-      alert(`[ SYSTEM ] SYNC_COMPLETE: ${Object.keys(pendingChanges).length} assets updated.`);
-      
-      // Refresh the gallery to show the saved data
       const refreshedAssets = await getCollectionMedia(selectedCollection);
       setCollectionAssets(refreshedAssets);
-      setPendingChanges({}); // Clear the staging area
+      setPendingChanges({});
+      alert("SUCCESS: Vault synchronized.");
       
     } catch (err) {
-      alert("SYNC_FAILED: Check terminal for logs.");
+      alert("SYNC_ERROR: Process aborted.");
     } finally {
-      setIsUploading(false);
+      setUploadingTier(null);
     }
   };
 
   const handleQuickAdd = async (files: FileList | null, tier: number) => {
     if (!files || !selectedCollection) return;
-    setIsUploading(true);
+    
+    setUploadingTier(tier); // Targets only the box you clicked
+    
     const res = await addMediaToCollection(selectedCollection, tier, Array.from(files));
     if (res.success) {
       setCollectionAssets(await getCollectionMedia(selectedCollection));
       const stats = await getAdminVaultStats();
       setVaultStats(stats);
     }
-    setIsUploading(false);
+    
+    setUploadingTier(null); // Clears the syncing state
   };
 
   // --- REUSABLE GATES ---
   const AddGate = ({ tier, label, isVideoGate = false }: any) => (
     <div className={`relative aspect-square border-2 border-dashed ${isVideoGate ? 'border-[#FF6600] bg-[#FF6600]/5' : 'border-[#FF6600]/20 bg-black'} flex flex-col items-center justify-center transition-all hover:border-[#FF6600] group`}>
-      <input type="file" multiple accept={isVideoGate ? "video/*" : "image/*"} onChange={(e) => handleQuickAdd(e.target.files, tier)} className="absolute inset-0 opacity-0 cursor-pointer z-10" disabled={isUploading} />
+      <input 
+        type="file" 
+        multiple 
+        accept={isVideoGate ? "video/*" : "image/*"} 
+        onChange={(e) => handleQuickAdd(e.target.files, tier)} 
+        className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+        disabled={uploadingTier !== null} 
+      />
       <span className={`text-[14px] font-black ${isVideoGate ? 'text-[#FF6600]' : 'text-gray-700'} group-hover:scale-125 transition-transform`}>+</span>
-      <span className={`text-[8px] font-black uppercase mt-1 ${isVideoGate ? 'text-[#FF6600]' : 'text-gray-500'}`}>{isUploading ? 'SYNCING...' : label}</span>
+      {/* Target the specific label here */}
+      <span className={`text-[8px] font-black uppercase mt-1 ${isVideoGate ? 'text-[#FF6600]' : 'text-gray-500'}`}>
+        {uploadingTier === tier ? 'SYNCING...' : label}
+      </span>
     </div>
   );
+
+  const handleCancelChanges = () => {
+    // Check if there's actually anything to cancel
+    if (Object.keys(pendingChanges).length === 0) return;
+
+    // Safety Gate: Confirm before wiping work
+    if (window.confirm("WARNING: Discard all staged video loops and price changes?")) {
+      setPendingChanges({});
+    }
+  };
 
   return (
     <div className="flex h-[calc(100vh-100px)] gap-8 animate-in fade-in duration-500">
@@ -122,18 +148,26 @@ export default function ArchiveManager({ vaultStats, setVaultStats }: any) {
                 const currentStart = changes.start_time ?? (asset.start_time || 0);
                 const currentPrice = changes.price ?? (asset.price || "2.00");
 
+                
+
                 return (
                   <div key={asset.id} className="flex flex-col gap-3 group animate-in fade-in duration-500">
+
                     {/* MEDIA BOX */}
-                    <div className={`aspect-square border transition-all ${asset.display_order === 0 ? 'border-[#FF6600] shadow-[0_0_20px_rgba(255,102,0,0.3)]' : 'border-[#FF6600]/10'} bg-black relative overflow-hidden`}>
-                      {isVid ? (
-                        <video src={`${asset.file_url}#t=${currentStart},${currentStart + 3}`} className="w-full h-full object-cover" autoPlay loop muted playsInline />
-                      ) : (
-                        <img src={asset.file_url} className="w-full h-full object-cover" alt="asset" />
-                      )}
-                      <div className="absolute top-2 left-2 px-2 py-1 bg-black/80 border border-[#FF6600]/30 text-[7px] font-black text-[#FF6600] uppercase">
+                    <div className={`media-grid-item aspect-square border transition-all ${asset.display_order === 0 ? 'border-[#FF6600] shadow-[0_0_20px_rgba(255,102,0,0.3)]' : 'border-[#FF6600]/10'} bg-black relative overflow-hidden`}>
+                      
+                      {/* THE GLOBAL ENGINE */}
+                      <OptimizedMedia 
+                        src={isVid ? `${asset.file_url}#t=${currentStart},${currentStart + 3}` : asset.file_url} 
+                        type={isVid ? 'video' : 'image'} 
+                        className={isVid ? "grayscale group-hover:grayscale-0 transition-all" : ""}
+                      />
+                      
+                      {/* TIER BADGE */}
+                      <div className="absolute top-2 left-2 px-2 py-1 bg-black/80 border border-[#FF6600]/30 text-[7px] font-black text-[#FF6600] uppercase z-10">
                         Tier_{asset.tier < 10 ? `0${asset.tier}` : asset.tier}
                       </div>
+
                     </div>
 
                     {/* INTEGRATED CONTROLS */}
@@ -184,22 +218,42 @@ export default function ArchiveManager({ vaultStats, setVaultStats }: any) {
           )}
         </div>
 
-        {/* 3. SETTINGS FOOTER: READ-ONLY METADATA */}
+        
+
+        {/* SETTINGS FOOTER */}
         {selectedCollection && (
           <div className="bg-black border border-[#FF6600]/20 p-6 flex items-end gap-6 shadow-2xl relative">
             <div className="absolute -top-3 left-6 px-3 bg-black text-[#FF6600] text-[8px] font-black uppercase tracking-widest border border-[#FF6600]/20">// MEDIA_IDENTIFIER</div>
+            
             <div className="flex-1">
               <label className="text-[8px] text-gray-600 block mb-2 uppercase font-black tracking-tighter">READ_ONLY_COLLECTION_ID</label>
               <input readOnly type="text" value={editName} className="w-full bg-[#0a0a0a] border border-[#FF6600]/10 p-3 text-gray-500 text-xs font-bold outline-none cursor-not-allowed uppercase" />
             </div>
-            <button 
-              onClick={handleGlobalSync}
-              className={`bg-[#FF6600] text-black px-12 py-3 text-[10px] font-black uppercase hover:bg-white transition-all shadow-[0_0_20px_rgba(255,102,0,0.3)] ${isUploading ? 'animate-pulse' : ''}`}
-            >
-              [ SAVE_CHANGES ]
-            </button>
+
+            <div className="flex gap-4">
+              {/* THE ABORT BUTTON: Only visible if changes exist */}
+              {Object.keys(pendingChanges).length > 0 && (
+                <button 
+                  onClick={handleCancelChanges}
+                  disabled={uploadingTier !== null}
+                  className="bg-transparent border border-red-900 text-red-900 px-8 py-3 text-[10px] font-black uppercase hover:bg-red-500 hover:text-black transition-all disabled:opacity-20"
+                >
+                  [ CANCEL_CHANGES ]
+                </button>
+              )}
+
+              {/* THE SYNC BUTTON */}
+              <button 
+                onClick={handleGlobalSync}
+                className={`bg-[#FF6600] text-black px-12 py-3 text-[10px] font-black uppercase hover:bg-white transition-all shadow-[0_0_20px_rgba(255,102,0,0.3)] ${uploadingTier === 0 ? 'animate-pulse' : ''}`}
+              >
+                {uploadingTier === 0 ? '[ SYNCING... ]' : '[ SAVE_CHANGES ]'}
+              </button>
+            </div>
           </div>
         )}
+
+
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getProfile, logoutUser, getVaultCovers, unlockVault } from './actions/auth'; 
 import Loading from './loading';
+import OptimizedMedia from '@/components/OptimizedMedia';
 
 // [1] SUB-COMPONENT: VaultCard (With Dynamic Slider Blurring)
 function VaultCard({ item, onClick, isProcessing, unlockedTiers }: { item: any, onClick: () => void, isProcessing: boolean, unlockedTiers: number[] }) {
@@ -43,24 +44,16 @@ function VaultCard({ item, onClick, isProcessing, unlockedTiers }: { item: any, 
             return (
               <div key={idx} className="min-w-full h-full flex items-center justify-center relative bg-black">
                 {isImageVisible ? (
-                  isVideo(imgObj.file_url) ? (
-                    <video 
-                      src={imgObj.file_url} 
-                      className="object-cover w-full h-full opacity-80 group-hover:opacity-100 transition-all duration-700"
-                      autoPlay loop muted playsInline
-                    />
-                  ) : (
-                    <img 
-                      src={imgObj.file_url}
-                      alt="Vault asset" 
-                      loading="lazy"
-                      className="object-cover w-full h-full transition-all duration-700 opacity-80 group-hover:opacity-100" 
-                    />
-                  )
+                  <OptimizedMedia
+                    src={imgObj.file_url}
+                    type={isVideo(imgObj.file_url) ? 'video' : 'image'}
+                    className="opacity-80 group-hover:opacity-100 transition-all duration-700"
+                  />
                 ) : (
-                  <img 
-                    src={`${imgObj.file_url}?width=200&quality=20`}
-                    className="object-cover w-full h-full blur-lg opacity-50 scale-105" 
+                  <OptimizedMedia
+                    src={imgObj.file_url}
+                    type="image"
+                    className="blur-lg opacity-50 scale-105 pointer-events-none"
                   />
                 )}
                 

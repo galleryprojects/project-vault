@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { getProfile, unlockVault, getVaultMedia, getUnlockedTiers, unlockMediaAsset, getUnlockedAssets } from '../../actions/auth'; 
+import OptimizedMedia from '@/components/OptimizedMedia';
 
 // NEW: Checks BOTH the file extension AND your database 'media_type' column
   const isVideo = (item: any) => {
@@ -36,18 +37,12 @@ function LockedTierSlider({ paddedMedia }: { paddedMedia: any[] }) {
       >
         {paddedMedia.map((item, idx) => (
           <div key={item.id || `fake-${idx}`} className="min-w-full h-full relative flex items-center justify-center bg-black">
-            {isVideo(item.file_url) ? (
-              <video 
-                src={item.file_url} 
-                className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-40 scale-105"
-                autoPlay loop muted playsInline
-              />
-            ) : (
-              <img 
-                src={item.file_url || undefined} 
-                className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-40 scale-105"
-              />
-            )}
+            
+            <OptimizedMedia 
+              src={item.file_url || ''} 
+              type={isVideo(item.file_url) ? 'video' : 'image'} 
+              className="absolute inset-0 blur-2xl opacity-40 scale-105" 
+            />
 
             {/* PADLOCK OVERLAY */}
             <div className="absolute inset-0 flex items-center justify-center">
@@ -435,19 +430,11 @@ export default function VaultInside() {
                             className="group aspect-[3/4] bg-black rounded-2xl relative overflow-hidden border border-black/5 shadow-sm cursor-pointer transition-all"
                           >
                             {/* MEDIA DISPLAY */}
-                            {isVideo(item.file_url) ? (
-                              <video 
-                                src={item.file_url} 
-                                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                autoPlay loop muted playsInline
-                              />
-                            ) : (
-                              <img 
-                                src={item.file_url} 
-                                alt="Vault Content"
-                                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                              />
-                            )}
+                            <OptimizedMedia 
+                              src={item.file_url} 
+                              type={isVideo(item.file_url) ? 'video' : 'image'} 
+                              className="absolute inset-0 group-hover:scale-105 transition-transform duration-500" 
+                            />
 
                             {/* DOWNLOAD ICON */}
                             <button 
