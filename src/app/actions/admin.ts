@@ -68,12 +68,9 @@ export async function getAdminVaultStats() {
   return Object.values(stats);
 }
 
-/**
- * [2] MEDIA_INJECTION: THE_FACTORY
- */
 
 /**
- * [2] MEDIA_INJECTION: THE_FACTORY (UPDATED FOR PPV)
+ * [2] MEDIA_INJECTION: THE_FACTORY (HARDENED & PARALLEL)
  */
 export async function uploadVaultMedia(formData: FormData): Promise<AdminUploadResponse> {
   try {
@@ -82,56 +79,61 @@ export async function uploadVaultMedia(formData: FormData): Promise<AdminUploadR
 
     const supabase = getAdminClient();
     
+    // Extract all arrays from the form
     const globalVaultId = formData.get('vaultId') as string;
     const files = formData.getAll('files') as File[];
     const slugs = formData.getAll('slugs') as string[];
-    // --- NEW: CATCH THE AUTO-PILOT DATA ---
     const prices = formData.getAll('prices') as string[];
     const startTimes = formData.getAll('startTimes') as string[];
     const tiers = formData.getAll('tiers') as string[];
 
-    const uploadResults = [];
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+    // Map files into upload promises for PARALLEL processing
+    const uploadPromises = files.map(async (file, i) => {
       const currentVaultId = (slugs[i] || globalVaultId).toLowerCase().trim();
-      const isVideo = file.type.startsWith('video');
+      const isVideo = file.type.startsWith('video/');
+      const displayOrder = i === 0 ? 0 : 1; // Index 0 is always the Cover
       
-      const displayOrder = i === 0 ? 0 : 1; 
       const fileName = `${currentVaultId}/${Date.now()}-${file.name.replace(/\s/g, '_')}`;
-      
+
+      // 1. Upload to Storage
       const { data: storageData, error: storageError } = await supabase.storage
         .from('vault-assets')
         .upload(fileName, file, { upsert: true });
 
-      if (storageError) continue;
+      if (storageError) throw new Error(`Storage Error: ${storageError.message}`);
 
+      // 2. Get URL
       const { data: { publicUrl } } = supabase.storage
         .from('vault-assets')
         .getPublicUrl(fileName);
 
+      // 3. Insert metadata with Auto-Pilot logic
       const { error: dbError } = await supabase
         .from('vault_media')
         .insert({
           vault_id: currentVaultId,
           file_url: publicUrl,
           media_type: isVideo ? 'video' : 'image',
-          // --- AUTO-PILOT: Videos are always 99, Images use the selected Tier ---
           tier: isVideo ? 99 : parseInt(tiers[i] || '1'),
           price: isVideo ? parseFloat(prices[i] || '2.00') : 0,
           start_time: isVideo ? parseInt(startTimes[i] || '0') : 0,
           display_order: displayOrder
         });
 
-      if (!dbError) uploadResults.push(publicUrl);
-    }
+      if (dbError) throw new Error(`DB Error: ${dbError.message}`);
+      return publicUrl;
+    });
+
+    // Run all uploads simultaneously
+    const results = await Promise.all(uploadPromises);
 
     return { 
       success: true, 
-      count: uploadResults.length,
-      message: `SYNC_COMPLETE: ${uploadResults.length} assets injected.` 
+      count: results.length,
+      message: `SYNC_COMPLETE: ${results.length} assets injected.` 
     };
   } catch (err: any) {
+    console.error("UPLOAD_FAILURE:", err);
     return { success: false, error: err.message || "INTERNAL_SYSTEM_FAILURE" };
   }
 }
@@ -439,4 +441,24 @@ export async function swapMediaFile(mediaId: string, oldFileUrl: string, newFile
     .eq('id', mediaId);
 
   return { success: !dbErr, newUrl: publicUrl };
+}
+
+/**
+ * [14] MEDIA_MANAGER: Update Specific Asset Details (Sneak Peeks)
+ */
+export async function updateAssetMetadata(assetId: string, price: string, startTime: number) {
+  const isAuthorized = await checkAdminBypass();
+  if (!isAuthorized) return { success: false };
+
+  const supabase = getAdminClient();
+  
+  const { error } = await supabase
+    .from('vault_media')
+    .update({ 
+      price: parseFloat(price), 
+      start_time: startTime 
+    })
+    .eq('id', assetId);
+
+  return { success: !error, error };
 }

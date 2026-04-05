@@ -7,3 +7,20 @@ html, body {
   padding: 0;
   background-color: #F7F7F5;
 }
+
+/* GLOBAL PERFORMANCE BOOST */
+.media-grid-item {
+  /* Tells the browser: "Don't paint this if I'm not looking at it" */
+  content-visibility: auto;
+  contain-intrinsic-size: 300px; /* Placeholder height while off-screen */
+}
+
+/* Smooth "Unveil" Animation */
+.animate-unveil {
+  animation: unveil 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes unveil {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

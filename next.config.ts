@@ -1,12 +1,22 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // bodySizeLimit is still often required in experimental for large uploads
   experimental: {
     serverActions: {
-      bodySizeLimit: '900mb', 
+      bodySizeLimit: '500mb',
     },
+    proxyClientMaxBodySize: '500mb',
+  },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'ltxdyydmerdqfvsvomwx.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
   },
 };
 
-export default nextConfig; // Ensure this export is at the bottom
+export default nextConfig;
