@@ -3,12 +3,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { uploadVaultMedia, getAdminVaultStats } from '../../actions/admin';
 
-// [FIX] Safer Video Detection (Checks native file type first)
-const isVideo = (file: any) => {
-  if (file?.type) return file.type.startsWith('video/');
-  if (typeof file === 'string') return !!file.match(/\.(mp4|webm|ogg|mov)$/i);
-  return false;
-};
 
 // --- SUB-COMPONENT: PRECISION VIDEO CARD ---
 function VideoPrecisionCard({ fileObj, onUpdate, onRemove, isCover = false }: any) {
@@ -89,15 +83,50 @@ interface MediaInjectionProps {
   setActiveTab: (tab: any) => void;
 }
 
-export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInjectionProps) {
+
+
+// INFINITY_RANDOMIZER: Generates 5 alphanumerics + 1 letter
+const generateRandomPrefix = () => {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; 
+  const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  let result = "";
+  for (let i = 0; i < 5; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  result += letters.charAt(Math.floor(Math.random() * letters.length));
+  return result;
+};
+
+export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
   const [uploadMode, setUploadMode] = useState<'SINGLE' | 'MULTI'>('SINGLE');
-  const [vaultStack, setVaultStack] = useState<VaultEntry[]>([]);
+  const [vaultStack, setVaultStack] = useState<any[]>([]); // VaultEntry[]
   
   const [activeCover, setActiveCover] = useState<any | null>(null);
   const [activeSlug, setActiveSlug] = useState('');
   const [activeTier, setActiveTier] = useState('1');
   const [activePayload, setActivePayload] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+
+  // --- INFINITY ENGINE STATE ---
+  const [sessionPrefix] = useState(() => generateRandomPrefix());
+  const [dbVaultCount, setDbVaultCount] = useState(0);
+
+  // [1] INITIAL SCAN: Checks the DB once when you open the tab
+  useEffect(() => {
+    // Assuming getAdminVaultStats is available in this scope
+    getAdminVaultStats().then((stats: any) => {
+      const count = stats.length;
+      setDbVaultCount(count);
+      const nextNum = (count + 1).toString().padStart(2, '0');
+      setActiveSlug(`##${sessionPrefix}${nextNum}`);
+    });
+  }, [sessionPrefix]);
+
+  // Helper to calculate the next slug without mutating state immediately
+  const getNextSlug = (currentStackLength: number) => {
+    const nextNum = (dbVaultCount + currentStackLength + 1).toString().padStart(2, '0');
+    return `##${sessionPrefix}${nextNum}`;
+  };
 
   const handleCoverSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -106,7 +135,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
         id: 'cover',
         file, 
         preview: URL.createObjectURL(file),
-        type: isVideo(file) ? 'video' : 'image',
+        type: file.type.includes('video') ? 'video' : 'image', // Basic check for isVideo
         startTime: 0,
         price: "2.00"
       });
@@ -119,7 +148,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
         id: Math.random().toString(36).substr(2, 9),
         file,
         preview: URL.createObjectURL(file),
-        type: isVideo(file) ? 'video' : 'image', 
+        type: file.type.includes('video') ? 'video' : 'image', 
         startTime: 0,                                 
         price: "2.00" 
       }));
@@ -148,9 +177,13 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
       const item = prev.find(v => v.id === id);
       if (item) {
         URL.revokeObjectURL(item.cover.preview);
-        item.payload.forEach(p => URL.revokeObjectURL(p.preview));
+        item.payload.forEach((p: any) => URL.revokeObjectURL(p.preview));
       }
-      return prev.filter(v => v.id !== id);
+      const updatedStack = prev.filter(v => v.id !== id);
+      
+      // Update the active slug to reflect the removed item
+      setActiveSlug(getNextSlug(updatedStack.length));
+      return updatedStack;
     });
   };
 
@@ -160,7 +193,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
       return alert("MISSING_DATA: // ACTIVE_SECTION_INCOMPLETE");
     }
 
-    const newEntry: VaultEntry = {
+    const stagedEntry = {
       id: Math.random().toString(36).substr(2, 9),
       cover: activeCover,
       slug: activeSlug.toLowerCase().trim(),
@@ -168,22 +201,25 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
       payload: activePayload
     };
 
-    setVaultStack(prev => [...prev, newEntry]);
+    const updatedStack = [...vaultStack, stagedEntry];
+    setVaultStack(updatedStack);
+    
+    // Reset and advance the sequence
     setActiveCover(null);
-    setActiveSlug('');
     setActivePayload([]);
+    setActiveSlug(getNextSlug(updatedStack.length));
   };
 
   const handleEditStackItem = (id: string) => {
     const item = vaultStack.find(v => v.id === id);
     if (!item) return;
 
-    if (activeCover || activeSlug || activePayload.length > 0) {
+    if (activeCover || activePayload.length > 0) {
       handleAddNewProtocol(new MouseEvent('click') as any); 
     }
 
     setActiveCover(item.cover);
-    setActiveSlug(item.slug);
+    setActiveSlug(item.slug); // Pulls the original slug back
     setActiveTier(item.tier);
     setActivePayload(item.payload);
 
@@ -218,7 +254,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
       formData.append('startTimes', entry.cover.startTime?.toString() || "0");
       formData.append('tiers', entry.cover.type === 'video' ? "99" : "0");
       
-      entry.payload.forEach(pf => {
+      entry.payload.forEach((pf: any) => {
         formData.append('files', pf.file);
         formData.append('slugs', entry.slug);
         formData.append('prices', pf.price || "2.00");
@@ -235,13 +271,18 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
     }
     
     alert(`[ SYSTEM ] SEQUENCE_COMPLETE: All protocols synchronized.`);
+    
+    // Clean up and reset for the next batch
     setVaultStack([]);
     setActiveCover(null);
     setActivePayload([]);
-    setActiveSlug('');
     
+    // Re-fetch stats to get the new true baseline, then reset slug
     const stats = await getAdminVaultStats();
     setVaultStats(stats);
+    setDbVaultCount(stats.length);
+    setActiveSlug(`##${sessionPrefix}${(stats.length + 1).toString().padStart(2, '0')}`);
+    
     setActiveTab('MEDIA_METRICS');
     setIsUploading(false);
   };
@@ -264,9 +305,9 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
             onClick={() => { 
               setUploadMode('SINGLE');
               setActiveCover(null);
-              setActiveSlug('');
               setActivePayload([]);
               setActiveTier('1');
+              setActiveSlug(getNextSlug(vaultStack.length)); // Smart Reset
             }} 
             className={`flex-1 py-4 text-[10px] font-black uppercase transition-all ${uploadMode === 'SINGLE' ? 'bg-[#FF6600] text-black shadow-[0_0_20px_rgba(255,102,0,0.3)]' : 'border border-[#FF6600]/30 text-gray-500'}`}
           >
@@ -278,9 +319,9 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
             onClick={() => { 
               setUploadMode('MULTI');
               setActiveCover(null);
-              setActiveSlug('');
               setActivePayload([]);
               setActiveTier('1');
+              setActiveSlug(getNextSlug(vaultStack.length)); // Smart Reset
             }} 
             className={`flex-1 py-4 text-[10px] font-black uppercase transition-all ${uploadMode === 'MULTI' ? 'bg-[#FF6600] text-black shadow-[0_0_20px_rgba(255,102,0,0.3)]' : 'border border-[#FF6600]/30 text-gray-500'}`}
           >
@@ -337,6 +378,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
             {activeCover ? (
               <div className="relative group flex justify-center">
                 {activeCover.type === 'video' ? (
+                  // Assuming VideoPrecisionCard is imported and working
                   <VideoPrecisionCard 
                     fileObj={activeCover} 
                     onUpdate={updateCoverFile} 
@@ -367,13 +409,12 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
           {/* MEDIA_METADATA */}
           <div className="grid grid-cols-2 gap-6 bg-black border border-[#FF6600]/20 p-6">
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-white mb-3 block">MEDIA_COLLECTION_NAME</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-white mb-3 block">GENERATED_PROTOCOL_ID</label>
               <input 
                 type="text" 
-                placeholder="e.g. archive-alpha-01"
+                readOnly
                 value={activeSlug}
-                onChange={(e) => setActiveSlug(e.target.value)}
-                className="w-full bg-[#0a0a0a] border border-[#FF6600]/30 px-4 py-3 text-white text-xs font-bold outline-none focus:border-[#FF6600]"
+                className="w-full bg-[#0a0a0a] border border-[#FF6600]/30 px-4 py-3 text-white text-xs font-bold outline-none cursor-not-allowed uppercase"
               />
             </div>
             <div>
@@ -429,6 +470,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: MediaInj
                 {activePayload.map((fileObj) => (
                   <React.Fragment key={fileObj.id}>
                     {fileObj.type === 'video' ? (
+                      // Assuming VideoPrecisionCard is imported and working
                       <VideoPrecisionCard 
                         fileObj={fileObj} 
                         onUpdate={updatePayloadFile} 

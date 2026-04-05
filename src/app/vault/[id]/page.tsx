@@ -30,19 +30,21 @@ function LockedTierSlider({ paddedMedia }: { paddedMedia: any[] }) {
 
   return (
     <div className="relative w-[150px] mx-auto h-[150px] bg-black rounded-full overflow-hidden shadow-2xl border border-white/5 group mb-8">
+
       {/* SLIDING IMAGES */}
       <div 
         className="flex h-full transition-transform duration-500 ease-out"
-        style={{ transform: `translateX(-${currentIndex * 100}%)` }}
-      >
-        {paddedMedia.map((item, idx) => (
-          <div key={item.id || `fake-${idx}`} className="min-w-full h-full relative flex items-center justify-center bg-black">
-            
-            <OptimizedMedia 
-              src={item.file_url || ''} 
-              type={isVideo(item.file_url) ? 'video' : 'image'} 
-              className="absolute inset-0 blur-2xl opacity-40 scale-105" 
-            />
+          style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+        >
+          {paddedMedia.map((item, idx) => (
+            <div key={item.id || `fake-${idx}`} className="min-w-full h-full relative flex items-center justify-center bg-black">
+              <OptimizedMedia 
+                src={item.file_url || ''} 
+                type={item.file_url?.match(/\.(mp4|webm|ogg|mov)$/i) ? 'video' : 'image'} 
+                className="absolute inset-0 blur-2xl opacity-40 scale-105" 
+                // [FIX] First 2 slides load instantly
+                priority={idx < 2} 
+              />
 
             {/* PADLOCK OVERLAY */}
             <div className="absolute inset-0 flex items-center justify-center">
@@ -202,8 +204,12 @@ export default function VaultInside() {
     );
   };
 
-  const handleDownload = async (url: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation(); 
+  // UPDATED: Supports a custom filename and prevents the TS error
+  const handleDownload = async (url: string, fileNameOrEvent?: string | React.MouseEvent) => {
+    // If the second argument is a click event, stop it from bubbling
+    if (typeof fileNameOrEvent !== 'string' && fileNameOrEvent?.stopPropagation) {
+      fileNameOrEvent.stopPropagation();
+    }
 
     try {
       const response = await fetch(url);
@@ -213,8 +219,12 @@ export default function VaultInside() {
       const link = document.createElement('a');
       link.href = blobUrl;
       
-      const fileName = url.split('/').pop() || 'vault-asset';
-      link.download = fileName;
+      // Use the provided filename or pull it from the URL
+      const finalName = typeof fileNameOrEvent === 'string' 
+        ? fileNameOrEvent 
+        : (url.split('/').pop()?.split('?')[0] || 'vault-asset');
+        
+      link.download = finalName;
       
       document.body.appendChild(link);
       link.click();
@@ -423,7 +433,7 @@ export default function VaultInside() {
                     ) : (
                       /* UNLOCKED STATE: FULL GRID */
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                        {tierMedia.map((item) => (
+                        {tierMedia.map((item, index) => (
                           <div 
                             key={item.id} 
                             onClick={() => setSelectedImage(item.file_url)}
@@ -432,8 +442,9 @@ export default function VaultInside() {
                             {/* MEDIA DISPLAY */}
                             <OptimizedMedia 
                               src={item.file_url} 
-                              type={isVideo(item.file_url) ? 'video' : 'image'} 
+                              type={item.file_url?.match(/\.(mp4|webm|ogg|mov)$/i) ? 'video' : 'image'}
                               className="absolute inset-0 group-hover:scale-105 transition-transform duration-500" 
+                              priority={index < 2}
                             />
 
                             {/* DOWNLOAD ICON */}
@@ -484,7 +495,14 @@ export default function VaultInside() {
           {/* CONTROLS CONTAINER */}
           <div className="absolute top-6 right-6 flex gap-3 z-[250]">
             <button 
-              onClick={(e) => { e.stopPropagation(); handleDownload(selectedImage); }}
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                // [FIX] Checking if selectedImage exists before splitting prevents the crash
+                if (selectedImage) {
+                  const rawUrl = selectedImage.split('?')[0];
+                  handleDownload(rawUrl, `vault-media-${Date.now()}`);
+                }
+              }}
               className="text-white font-black text-[10px] tracking-widest uppercase bg-[#FF6600] px-6 py-3 rounded-full hover:bg-white hover:text-black transition-all shadow-lg"
             >
               [ DOWNLOAD ]
