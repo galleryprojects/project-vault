@@ -23,32 +23,44 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-4 font-mono">
-      <div className="w-full max-w-sm border border-[#FF6600]/20 bg-black p-8 shadow-[0_0_40px_rgba(255,102,0,0.05)] relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1 bg-[#FF6600]"></div>
+    // [1] Switched background to pure white and changed font to Inter/Sans for elegance
+    <div className="min-h-screen bg-white flex items-center justify-center px-4 font-sans">
+      
+      {/* [2] Box is now white with a soft pink shadow and border */}
+      <div className="w-full max-w-sm border border-[#FF69B4]/20 bg-white p-10 shadow-[0_20px_50px_rgba(255,105,180,0.1)] relative overflow-hidden rounded-3xl">
+        
+        {/* [3] Accent top bar is now Pink */}
+        <div className="absolute top-0 left-0 w-full h-1.5 bg-[#FF69B4]"></div>
+        
         <div className="text-center mb-10">
-          <h1 className="text-[#FF6600] font-black text-2xl tracking-[0.3em] uppercase">GHOST_TERMINAL</h1>
-          <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mt-2">// ENCRYPTED HANDSHAKE REQ</p>
+          <h1 className="text-[#FF69B4] font-black text-2xl tracking-[0.3em] uppercase">GHOST_TERMINAL</h1>
+          <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-2">// ENCRYPTED HANDSHAKE REQ</p>
         </div>
+
         <form onSubmit={handleLogin} className="space-y-6">
+          {/* [4] Inputs now have pink borders and pink text focus */}
           <input 
             type="text" 
             placeholder="IDENTITY_SIGNATURE" 
-            className="w-full bg-[#0a0a0a] border border-[#FF6600]/30 px-4 py-3 text-[#FF6600] text-xs focus:border-[#FF6600] focus:bg-[#FF6600]/5 outline-none transition-all placeholder:text-[#FF6600]/30 tracking-widest uppercase"
+            className="w-full bg-gray-50 border border-[#FF69B4]/30 rounded-xl px-4 py-4 text-[#FF69B4] text-xs focus:border-[#FF69B4] focus:ring-1 focus:ring-[#FF69B4] outline-none transition-all placeholder:text-[#FF69B4]/30 tracking-widest uppercase"
             onChange={e => setLoginUser(e.target.value)}
             value={loginUser}
             required
           />
+          
           <input 
             type="password" 
             placeholder="ACCESS_PASSPHRASE" 
-            className="w-full bg-[#0a0a0a] border border-[#FF6600]/30 px-4 py-3 text-[#FF6600] text-xs focus:border-[#FF6600] focus:bg-[#FF6600]/5 outline-none transition-all placeholder:text-[#FF6600]/30 tracking-widest uppercase"
+            className="w-full bg-gray-50 border border-[#FF69B4]/30 rounded-xl px-4 py-4 text-[#FF69B4] text-xs focus:border-[#FF69B4] focus:ring-1 focus:ring-[#FF69B4] outline-none transition-all placeholder:text-[#FF69B4]/30 tracking-widest uppercase"
             onChange={e => setLoginPass(e.target.value)}
             value={loginPass}
             required
           />
-          {error && <p className="text-red-500 text-[10px] font-bold uppercase text-center tracking-widest animate-pulse">ERR: {error}</p>}
-          <button className="w-full bg-[#FF6600] text-black py-4 font-black uppercase text-[11px] tracking-[0.2em] hover:bg-white hover:text-black transition-all">
+
+          {error && <p className="text-red-400 text-[10px] font-bold uppercase text-center tracking-widest animate-pulse">ERR: {error}</p>}
+          
+          {/* [5] The Main Button is now Pink with a soft glow */}
+          <button className="w-full bg-[#FF69B4] text-white py-4 rounded-full font-black uppercase text-[11px] tracking-[0.3em] shadow-[0_10px_20px_rgba(255,105,180,0.3)] hover:scale-[1.02] active:scale-95 transition-all">
             [ EXECUTE_LOGIN ]
           </button>
         </form>

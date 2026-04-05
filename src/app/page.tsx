@@ -313,7 +313,7 @@ export default function Home() {
               <span className="text-[14px] font-black">${userProfile?.balance?.toFixed(2) || "0.00"}</span>
               <span className="text-[7px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-0.5">Credits</span>
             </div>
-            <button onClick={() => router.push('/deposit')} className="bg-[#FF6600] text-white text-[10px] font-black px-5 py-2.5 rounded-full uppercase tracking-widest shadow-lg">Deposit</button>
+            <button onClick={() => router.push('/deposit')} className="bg-primary text-white text-[10px] font-black px-5 py-2.5 rounded-full uppercase tracking-widest shadow-lg hover:bg-primary-hover transition-colors"> Deposit</button>
           </div>
         </div>
       </nav>

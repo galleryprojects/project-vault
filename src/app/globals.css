@@ -2,25 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body {
-  margin: 0;
-  padding: 0;
-  background-color: #F7F7F5;
+:root {
+  /* THE MASTER PINK CONTROLS */
+  --primary: #FF69B4;
+  --primary-hover: #E91E63;
+  --primary-soft: #FFF5F7;
+  
+  /* THE ELEGANT BACKGROUND */
+  --background: #ffffff;
+  --foreground: #1a1a1a;
 }
 
-/* GLOBAL PERFORMANCE BOOST */
-.media-grid-item {
-  /* Tells the browser: "Don't paint this if I'm not looking at it" */
-  content-visibility: auto;
-  contain-intrinsic-size: 300px; /* Placeholder height while off-screen */
-}
-
-/* Smooth "Unveil" Animation */
-.animate-unveil {
-  animation: unveil 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-@keyframes unveil {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: 'Inter', sans-serif; /* High-end fashion font */
 }
