@@ -22,11 +22,11 @@ function VideoPrecisionCard({ fileObj, onUpdate, onRemove, isCover = false }: an
   }, [localStart, localPrice]);
 
   return (
-    <div className={`bg-[#0a0a0a] border border-[#FF6600]/30 p-4 rounded-xl flex flex-col items-center gap-4 ${isCover ? 'w-64' : 'col-span-2 shadow-lg animate-in fade-in zoom-in-95'}`}>
-      {isCover && <span className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest">// COVER_ASSET</span>}
+    <div className={`bg-[#0a0a0a] border border-[#3B82F6]/30 p-4 rounded-xl flex flex-col items-center gap-4 ${isCover ? 'w-64' : 'col-span-2 shadow-lg animate-in fade-in zoom-in-95'}`}>
+      {isCover && <span className="text-[10px] font-black text-[#3B82F6] uppercase tracking-widest">// COVER_ASSET</span>}
       
       {/* ROUNDED THUMBNAIL */}
-      <div className="w-20 h-20 rounded-full overflow-hidden bg-black border-2 border-[#FF6600] relative shadow-[0_0_15px_rgba(255,102,0,0.3)]">
+      <div className="w-20 h-20 rounded-full overflow-hidden bg-black border-2 border-[#3B82F6] relative shadow-[0_0_15px_rgba(59,130,246,0.3)]">
         <video 
           ref={videoRef}
           src={`${fileObj.preview}#t=${localStart},${localStart + 3}`}
@@ -38,7 +38,7 @@ function VideoPrecisionCard({ fileObj, onUpdate, onRemove, isCover = false }: an
 
       {/* RESTORED: DURATION BADGE BELOW THUMBNAIL */}
       <div className="text-center">
-        <p className="text-[10px] font-black text-[#FF6600] uppercase tracking-widest">
+        <p className="text-[10px] font-black text-[#3B82F6] uppercase tracking-widest">
           [ {formatDuration(duration)} TOTAL ]
         </p>
       </div>
@@ -52,12 +52,12 @@ function VideoPrecisionCard({ fileObj, onUpdate, onRemove, isCover = false }: an
         <input 
           type="range" min="0" max={Math.max(0, duration - 3)} value={localStart}
           onChange={(e) => setLocalStart(parseInt(e.target.value))}
-          className="w-full h-1 bg-[#FF6600]/20 appearance-none cursor-pointer accent-[#FF6600] rounded-full" 
+          className="w-full h-1 bg-[#3B82F6]/20 appearance-none cursor-pointer accent-[#3B82F6] rounded-full" 
         />
       </div>
 
-      <div className="w-full flex items-center bg-black border border-[#FF6600]/30 px-2 py-1 mt-2 rounded">
-        <span className="text-[#FF6600] font-black text-[10px] mr-1">$</span>
+      <div className="w-full flex items-center bg-black border border-[#3B82F6]/30 px-2 py-1 mt-2 rounded">
+        <span className="text-[#3B82F6] font-black text-[10px] mr-1">$</span>
         <input type="number" step="0.01" value={localPrice} onChange={(e) => setLocalPrice(e.target.value)}
           className="bg-transparent text-white text-[10px] font-bold outline-none w-full" />
       </div>
@@ -149,7 +149,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
         file,
         preview: URL.createObjectURL(file),
         type: file.type.includes('video') ? 'video' : 'image', 
-        startTime: 0,                                 
+        startTime: 0,                                         
         price: "2.00" 
       }));
       setActivePayload(prev => [...prev, ...newFiles]);
@@ -291,7 +291,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
 
   return (
     <div className="max-w-4xl animate-in fade-in duration-500 pb-32">
-      <header className="mb-10 border-b border-[#FF6600]/20 pb-6">
+      <header className="mb-10 border-b border-[#3B82F6]/20 pb-6">
         <h2 className="text-[24px] font-black uppercase tracking-widest text-white">Media Factory</h2>
         <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2">// INJECT_ASSETS_TO_ENCRYPTED_BUCKET</p>
       </header>
@@ -309,7 +309,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
               setActiveTier('1');
               setActiveSlug(getNextSlug(vaultStack.length)); // Smart Reset
             }} 
-            className={`flex-1 py-4 text-[10px] font-black uppercase transition-all ${uploadMode === 'SINGLE' ? 'bg-[#FF6600] text-black shadow-[0_0_20px_rgba(255,102,0,0.3)]' : 'border border-[#FF6600]/30 text-gray-500'}`}
+            className={`flex-1 py-4 text-[10px] font-black uppercase transition-all ${uploadMode === 'SINGLE' ? 'bg-[#3B82F6] text-black shadow-[0_0_20px_rgba(59,130,246,0.3)]' : 'border border-[#3B82F6]/30 text-gray-500'}`}
           >
             [ SINGLE_DROP_MODE ]
           </button>
@@ -323,7 +323,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
               setActiveTier('1');
               setActiveSlug(getNextSlug(vaultStack.length)); // Smart Reset
             }} 
-            className={`flex-1 py-4 text-[10px] font-black uppercase transition-all ${uploadMode === 'MULTI' ? 'bg-[#FF6600] text-black shadow-[0_0_20px_rgba(255,102,0,0.3)]' : 'border border-[#FF6600]/30 text-gray-500'}`}
+            className={`flex-1 py-4 text-[10px] font-black uppercase transition-all ${uploadMode === 'MULTI' ? 'bg-[#3B82F6] text-black shadow-[0_0_20px_rgba(59,130,246,0.3)]' : 'border border-[#3B82F6]/30 text-gray-500'}`}
           >
             [ MULTIPLE_UPLOAD_MODE ]
           </button>
@@ -337,17 +337,17 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
               <div 
                 key={v.id} 
                 onClick={() => handleEditStackItem(v.id)}
-                className="bg-black border border-[#FF6600]/40 p-4 flex items-center justify-between group cursor-pointer hover:bg-[#FF6600]/5 transition-all"
+                className="bg-black border border-[#3B82F6]/40 p-4 flex items-center justify-between group cursor-pointer hover:bg-[#3B82F6]/5 transition-all"
               >
                 <div className="flex items-center gap-6">
                   {v.cover.type === 'video' ? (
-                    <video src={v.cover.preview} className="w-12 h-12 object-cover border border-[#FF6600]/20" muted />
+                    <video src={v.cover.preview} className="w-12 h-12 object-cover border border-[#3B82F6]/20" muted />
                   ) : (
-                    <img src={v.cover.preview} className="w-12 h-12 object-cover border border-[#FF6600]/20" alt="cover" />
+                    <img src={v.cover.preview} className="w-12 h-12 object-cover border border-[#3B82F6]/20" alt="cover" />
                   )}
                   <div>
                     <p className="text-[12px] font-black text-white uppercase">{v.slug}</p>
-                    <p className="text-[9px] font-bold text-[#FF6600] uppercase mt-1">TIER_0{v.tier} | {v.payload.length} ASSETS</p>
+                    <p className="text-[9px] font-bold text-[#3B82F6] uppercase mt-1">TIER_0{v.tier} | {v.payload.length} ASSETS</p>
                   </div>
                 </div>
                 
@@ -363,13 +363,13 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
           </div>
         )}
 
-        <div className="border border-[#FF6600]/20 bg-black/40 p-10 space-y-8 relative">
+        <div className="border border-[#3B82F6]/20 bg-black/40 p-10 space-y-8 relative">
           {uploadMode === 'MULTI' && (
-            <div className="absolute top-4 right-6 text-[9px] font-black text-[#FF6600] uppercase tracking-widest animate-pulse">// ACTIVE_FORM</div>
+            <div className="absolute top-4 right-6 text-[9px] font-black text-[#3B82F6] uppercase tracking-widest animate-pulse">// ACTIVE_FORM</div>
           )}
           
           {/* PRIMARY_COVER_ASSET */}
-          <div className="bg-black border border-[#FF6600]/20 p-6">
+          <div className="bg-black border border-[#3B82F6]/20 p-6">
             <label className="text-[10px] font-black uppercase tracking-widest text-white mb-4 block flex justify-between">
               <span>// PRIMARY_COVER_ASSET (DISPLAY_0)</span>
               <span className="text-gray-500 text-[8px]">*REQUIRED FOR HOMEPAGE</span>
@@ -386,35 +386,35 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
                     isCover={true} 
                   />
                 ) : (
-                  <div className="relative w-48 h-48 border border-[#FF6600]">
+                  <div className="relative w-48 h-48 border border-[#3B82F6]">
                     <img src={activeCover.preview} alt="Cover Preview" className="w-full h-full object-cover opacity-80" />
                     <button 
                       type="button" 
                       onClick={() => setActiveCover(null)} 
-                      className="absolute top-2 right-2 w-6 h-6 bg-black border border-[#FF6600] text-[#FF6600] flex items-center justify-center text-[10px] font-black hover:bg-[#FF6600] hover:text-black transition-colors"
+                      className="absolute top-2 right-2 w-6 h-6 bg-black border border-[#3B82F6] text-[#3B82F6] flex items-center justify-center text-[10px] font-black hover:bg-[#3B82F6] hover:text-black transition-colors"
                     >X</button>
-                    <div className="absolute bottom-0 left-0 w-full bg-[#FF6600] text-black text-[8px] font-black text-center py-1 uppercase tracking-widest">COVER_LOCKED</div>
+                    <div className="absolute bottom-0 left-0 w-full bg-[#3B82F6] text-black text-[8px] font-black text-center py-1 uppercase tracking-widest">COVER_LOCKED</div>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="relative w-48 h-48 border-2 border-dashed border-[#FF6600]/40 flex flex-col items-center justify-center hover:border-[#FF6600] transition-colors cursor-pointer bg-[#FF6600]/5">
+              <div className="relative w-48 h-48 border-2 border-dashed border-[#3B82F6]/40 flex flex-col items-center justify-center hover:border-[#3B82F6] transition-colors cursor-pointer bg-[#3B82F6]/5">
                 <input type="file" onChange={handleCoverSelect} accept="image/*,video/*" className="absolute inset-0 opacity-0 cursor-pointer" />
-                <span className="text-[20px] mb-2 text-[#FF6600]">+</span>
-                <span className="text-[9px] font-bold text-[#FF6600] tracking-widest">STAGE_COVER</span>
+                <span className="text-[20px] mb-2 text-[#3B82F6]">+</span>
+                <span className="text-[9px] font-bold text-[#3B82F6] tracking-widest">STAGE_COVER</span>
               </div>
             )}
           </div>
 
           {/* MEDIA_METADATA */}
-          <div className="grid grid-cols-2 gap-6 bg-black border border-[#FF6600]/20 p-6">
+          <div className="grid grid-cols-2 gap-6 bg-black border border-[#3B82F6]/20 p-6">
             <div>
               <label className="text-[10px] font-black uppercase tracking-widest text-white mb-3 block">GENERATED_PROTOCOL_ID</label>
               <input 
                 type="text" 
                 readOnly
                 value={activeSlug}
-                className="w-full bg-[#0a0a0a] border border-[#FF6600]/30 px-4 py-3 text-white text-xs font-bold outline-none cursor-not-allowed uppercase"
+                className="w-full bg-[#0a0a0a] border border-[#3B82F6]/30 px-4 py-3 text-white text-xs font-bold outline-none cursor-not-allowed uppercase"
               />
             </div>
             <div>
@@ -422,7 +422,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
               <select 
                 value={activeTier}
                 onChange={(e) => setActiveTier(e.target.value)}
-                className="w-full bg-[#0a0a0a] border border-[#FF6600]/30 px-4 py-3 text-white text-xs font-bold outline-none focus:border-[#FF6600] appearance-none"
+                className="w-full bg-[#0a0a0a] border border-[#3B82F6]/30 px-4 py-3 text-white text-xs font-bold outline-none focus:border-[#3B82F6] appearance-none"
               >
                 <option value="1">TIER_01 ($6.00)</option>
                 <option value="2">TIER_02 ($4.00)</option>
@@ -435,7 +435,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
           <div className="grid grid-cols-2 gap-6">
             <div>
               <label className="text-[10px] font-black uppercase tracking-widest text-white mb-3 block">// ZONE A: IMAGES (STANDARD TIERS)</label>
-              <div className="relative border-2 border-dashed border-gray-600 hover:border-[#FF6600] bg-white/5 transition-all text-center p-16 rounded-2xl">
+              <div className="relative border-2 border-dashed border-gray-600 hover:border-[#3B82F6] bg-white/5 transition-all text-center p-16 rounded-2xl">
                 <input type="file" multiple onChange={handlePayloadSelect} accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer z-10" />
                 <div className="pointer-events-none">
                   <p className="text-[12px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">DRAG IMAGES HERE</p>
@@ -445,12 +445,12 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
             </div>
 
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#FF6600] mb-3 block">// ZONE B: VIDEOS (SNEAK PEEKS)</label>
-              <div className="relative border-2 border-dashed border-[#FF6600]/50 hover:border-[#FF6600] bg-[#FF6600]/10 transition-all text-center p-16 rounded-2xl shadow-[0_0_20px_rgba(255,102,0,0.1)]">
+              <label className="text-[10px] font-black uppercase tracking-widest text-[#3B82F6] mb-3 block">// ZONE B: VIDEOS (SNEAK PEEKS)</label>
+              <div className="relative border-2 border-dashed border-[#3B82F6]/50 hover:border-[#3B82F6] bg-[#3B82F6]/10 transition-all text-center p-16 rounded-2xl shadow-[0_0_20px_rgba(59,130,246,0.1)]">
                 <input type="file" multiple onChange={handlePayloadSelect} accept="video/*" className="absolute inset-0 opacity-0 cursor-pointer z-10" />
                 <div className="pointer-events-none">
-                  <p className="text-[12px] font-black text-[#FF6600] uppercase tracking-[0.2em] mb-2">DRAG VIDEOS HERE</p>
-                  <p className="text-[9px] text-[#FF6600]/70 uppercase tracking-widest">AUTO-SET TO TIER 99 PPV</p>
+                  <p className="text-[12px] font-black text-[#3B82F6] uppercase tracking-[0.2em] mb-2">DRAG VIDEOS HERE</p>
+                  <p className="text-[9px] text-[#3B82F6]/70 uppercase tracking-widest">AUTO-SET TO TIER 99 PPV</p>
                 </div>
               </div>
             </div>
@@ -458,10 +458,10 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
 
           {/* PREVIEW_BUFFER */}
           {activePayload.length > 0 && (
-            <div className="border border-[#FF6600]/20 bg-black p-6">
-              <div className="flex justify-between items-center mb-6 border-b border-[#FF6600]/20 pb-4">
+            <div className="border border-[#3B82F6]/20 bg-black p-6">
+              <div className="flex justify-between items-center mb-6 border-b border-[#3B82F6]/20 pb-4">
                 <span className="text-[10px] font-black text-white tracking-widest uppercase">// PREVIEW_BUFFER</span>
-                <span className="text-[9px] font-bold text-[#FF6600] tracking-widest uppercase">
+                <span className="text-[9px] font-bold text-[#3B82F6] tracking-widest uppercase">
                   STAGED: {activePayload.length} ASSETS | WEIGHT: {totalWeight.toFixed(2)} MB
                 </span>
               </div>
@@ -478,12 +478,12 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
                       />
                     ) : (
                       <div className="relative group flex flex-col gap-2">
-                        <div className="relative aspect-square border border-[#FF6600]/30 bg-[#0a0a0a]">
+                        <div className="relative aspect-square border border-[#3B82F6]/30 bg-[#0a0a0a]">
                           <img src={fileObj.preview} alt="staged" className="w-full h-full object-cover opacity-60" />
                           <button 
                             type="button" 
                             onClick={() => removePayloadFile(fileObj.id)} 
-                            className="absolute top-1 right-1 w-5 h-5 bg-black/80 border border-[#FF6600] text-[#FF6600] flex items-center justify-center text-[8px] font-black hover:bg-[#FF6600] hover:text-black transition-colors opacity-0 group-hover:opacity-100"
+                            className="absolute top-1 right-1 w-5 h-5 bg-black/80 border border-[#3B82F6] text-[#3B82F6] flex items-center justify-center text-[8px] font-black hover:bg-[#3B82F6] hover:text-black transition-colors opacity-0 group-hover:opacity-100"
                           >X</button>
                         </div>
                       </div>
@@ -501,7 +501,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
             <button 
               type="button"
               onClick={handleAddNewProtocol}
-              className="flex-1 bg-transparent border border-[#FF6600] text-[#FF6600] py-6 font-black uppercase text-[12px] tracking-[0.2em] hover:bg-[#FF6600]/10 transition-all"
+              className="flex-1 bg-transparent border border-[#3B82F6] text-[#3B82F6] py-6 font-black uppercase text-[12px] tracking-[0.2em] hover:bg-[#3B82F6]/10 transition-all"
             >
               [ + ADD_NEW ]
             </button>
@@ -509,7 +509,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
           <button 
             type="submit" 
             disabled={isUploading || (!activeCover && vaultStack.length === 0)}
-            className={`flex-[2] bg-[#FF6600] text-black py-6 font-black uppercase text-[12px] tracking-[0.3em] hover:bg-white transition-all disabled:opacity-20 disabled:hover:bg-[#FF6600] ${isUploading ? 'animate-pulse' : ''}`}
+            className={`flex-[2] bg-[#3B82F6] text-black py-6 font-black uppercase text-[12px] tracking-[0.3em] hover:bg-white transition-all disabled:opacity-20 disabled:hover:bg-[#3B82F6] ${isUploading ? 'animate-pulse' : ''}`}
           >
             {isUploading ? '[ SYNCHRONIZING_TO_BUCKET... ]' : '[ EXECUTE_UPLOAD_SEQUENCE ]'}
           </button>

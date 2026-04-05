@@ -45,41 +45,41 @@ export default function InvisibleAdmin() {
 
   // --- RENDER: AUTHORIZED DASHBOARD ---
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#FF6600] flex font-mono selection:bg-[#FF6600] selection:text-black">
+    <div className="min-h-screen bg-[#0a0a0a] text-[#3B82F6] flex font-mono selection:bg-[#3B82F6] selection:text-black">
       
       {/* CONTROL_PANEL SIDEBAR */}
-      <aside className="w-[280px] bg-black border-r border-[#FF6600]/20 fixed h-full flex flex-col z-50">
-        <div className="p-8 border-b border-[#FF6600]/20 relative">
-          <div className="absolute top-0 left-0 w-full h-1 bg-[#FF6600]" />
+      <aside className="w-[280px] bg-black border-r border-[#3B82F6]/20 fixed h-full flex flex-col z-50">
+        <div className="p-8 border-b border-[#3B82F6]/20 relative">
+          <div className="absolute top-0 left-0 w-full h-1 bg-[#3B82F6]" />
           <h1 className="text-[14px] font-black tracking-[0.2em] uppercase text-white">Master Control</h1>
-          <p className="text-[#FF6600] text-[9px] font-bold uppercase tracking-widest mt-2 animate-pulse">// ZERO_TRACE_ACTIVE</p>
+          <p className="text-[#3B82F6] text-[9px] font-bold uppercase tracking-widest mt-2 animate-pulse">// ZERO_TRACE_ACTIVE</p>
         </div>
         
         <nav className="flex-1 p-6 flex flex-col gap-3 mt-2 text-[10px] font-bold uppercase tracking-[0.15em]">
           <button 
             onClick={() => setActiveTab('MEDIA_METRICS')}
-            className={`text-left px-4 py-3 border transition-all ${activeTab === 'MEDIA_METRICS' ? 'border-[#FF6600]/50 bg-[#FF6600]/10 text-[#FF6600]' : 'border-transparent text-gray-500 hover:text-[#FF6600] hover:border-[#FF6600]/20'}`}
+            className={`text-left px-4 py-3 border transition-all ${activeTab === 'MEDIA_METRICS' ? 'border-[#3B82F6]/50 bg-[#3B82F6]/10 text-[#3B82F6]' : 'border-transparent text-gray-500 hover:text-[#3B82F6] hover:border-[#3B82F6]/20'}`}
           >
             [ MEDIA_METRICS ]
           </button>
           
           <button 
             onClick={() => setActiveTab('MEDIA_INJECTION')}
-            className={`text-left px-4 py-3 border transition-all ${activeTab === 'MEDIA_INJECTION' ? 'border-[#FF6600]/50 bg-[#FF6600]/10 text-[#FF6600]' : 'border-transparent text-gray-500 hover:text-[#FF6600] hover:border-[#FF6600]/20'}`}
+            className={`text-left px-4 py-3 border transition-all ${activeTab === 'MEDIA_INJECTION' ? 'border-[#3B82F6]/50 bg-[#3B82F6]/10 text-[#3B82F6]' : 'border-transparent text-gray-500 hover:text-[#3B82F6] hover:border-[#3B82F6]/20'}`}
           >
             [ MEDIA_INJECTION ]
           </button>
 
           <button 
             onClick={() => setActiveTab('MEDIA_MANAGER')} 
-            className={`text-left px-4 py-3 border transition-all ${activeTab === 'MEDIA_MANAGER' ? 'border-[#FF6600]/50 bg-[#FF6600]/10 text-[#FF6600]' : 'border-transparent text-gray-500 hover:text-[#FF6600] hover:border-[#FF6600]/20'}`}
+            className={`text-left px-4 py-3 border transition-all ${activeTab === 'MEDIA_MANAGER' ? 'border-[#3B82F6]/50 bg-[#3B82F6]/10 text-[#3B82F6]' : 'border-transparent text-gray-500 hover:text-[#3B82F6] hover:border-[#3B82F6]/20'}`}
           >
             [ MEDIA_MANAGER ]
           </button>
           
           <button 
             onClick={() => setActiveTab('DEPOSIT_VERIFY')}
-            className={`text-left px-4 py-3 border transition-all ${activeTab === 'DEPOSIT_VERIFY' ? 'border-[#FF6600]/50 bg-[#FF6600]/10 text-[#FF6600]' : 'border-transparent text-gray-500 hover:text-[#FF6600] hover:border-[#FF6600]/20'}`}
+            className={`text-left px-4 py-3 border transition-all ${activeTab === 'DEPOSIT_VERIFY' ? 'border-[#3B82F6]/50 bg-[#3B82F6]/10 text-[#3B82F6]' : 'border-transparent text-gray-500 hover:text-[#3B82F6] hover:border-[#3B82F6]/20'}`}
           >
             [ DEPOSIT_VERIFY ]
           </button>
@@ -88,7 +88,7 @@ export default function InvisibleAdmin() {
           <button className="text-left px-4 py-3 border border-transparent text-gray-700 opacity-50 cursor-not-allowed">[ REVENUE_STREAM ]</button>
         </nav>
 
-        <div className="p-6 border-t border-[#FF6600]/20">
+        <div className="p-6 border-t border-[#3B82F6]/20">
           <button 
             onClick={async () => { await logoutAdminBypass(); router.push('/'); }} 
             className="w-full text-center px-4 py-3 border border-red-500/30 text-red-500 hover:bg-red-500 hover:text-black text-[10px] font-black uppercase tracking-widest transition-all"

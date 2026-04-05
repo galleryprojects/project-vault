@@ -40,20 +40,20 @@ export default function DepositMonitor() {
 
   return (
     <div className="max-w-6xl animate-in fade-in duration-500">
-      <header className="mb-10 border-b border-[#FF6600]/20 pb-6 flex justify-between items-end">
+      <header className="mb-10 border-b border-[#3B82F6]/20 pb-6 flex justify-between items-end">
         <div>
           <h2 className="text-[24px] font-black uppercase tracking-widest text-white">Inbound Credit Monitor</h2>
           <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2">// PENDING_GIFT_CARD_CLAIMS</p>
         </div>
         <div className="text-right">
-          <p className="text-[10px] font-black text-[#FF6600] uppercase tracking-[0.2em]">QUEUE_COUNT: {pendingDeposits.length}</p>
+          <p className="text-[10px] font-black text-[#3B82F6] uppercase tracking-[0.2em]">QUEUE_COUNT: {pendingDeposits.length}</p>
         </div>
       </header>
 
-      <div className="border border-[#FF6600]/20 bg-black/50 overflow-hidden shadow-2xl">
+      <div className="border border-[#3B82F6]/20 bg-black/50 overflow-hidden shadow-2xl">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="border-b border-[#FF6600]/20 text-[9px] font-black uppercase tracking-[0.2em] text-gray-500 bg-black">
+            <tr className="border-b border-[#3B82F6]/20 text-[9px] font-black uppercase tracking-[0.2em] text-gray-500 bg-black">
               <th className="p-5">TIMESTAMP</th>
               <th className="p-5">GHOST_ID</th>
               <th className="p-5">PLATFORM</th>
@@ -71,7 +71,7 @@ export default function DepositMonitor() {
               </tr>
             ) : (
               pendingDeposits.map((dep) => (
-                <tr key={dep.id} className="border-b border-[#FF6600]/10 hover:bg-[#FF6600]/5 transition-colors">
+                <tr key={dep.id} className="border-b border-[#3B82F6]/10 hover:bg-[#3B82F6]/5 transition-colors">
                   <td className="p-5 text-gray-400 text-[10px]">{new Date(dep.created_at).toLocaleString()}</td>
                   <td className="p-5 font-bold uppercase">
                     {/* Priority 1: Custom Display ID | Priority 2: Username | Fallback: Raw ID */}
@@ -82,17 +82,17 @@ export default function DepositMonitor() {
                     )}
                   </td>
                   <td className="p-5">
-                    <span className="bg-[#FF6600]/10 border border-[#FF6600]/20 px-2 py-1 text-[9px] text-[#FF6600]">
+                    <span className="bg-[#3B82F6]/10 border border-[#3B82F6]/20 px-2 py-1 text-[9px] text-[#3B82F6]">
                       {dep.platform}
                     </span>
                   </td>
-                  <td className="p-5 text-[#FF6600] font-mono text-[11px] tracking-tighter">{dep.code}</td>
+                  <td className="p-5 text-[#3B82F6] font-mono text-[11px] tracking-tighter">{dep.code}</td>
                   <td className="p-5 text-center text-white font-black text-[12px]">${dep.amount}</td>
                   <td className="p-5 text-right space-x-3">
                     <button 
                       disabled={isProcessingDeposit === dep.id}
                       onClick={() => handleApprove(dep)}
-                      className="bg-[#FF6600] text-black px-4 py-2 text-[9px] font-black uppercase hover:bg-white transition-all disabled:opacity-50"
+                      className="bg-[#3B82F6] text-black px-4 py-2 text-[9px] font-black uppercase hover:bg-white transition-all disabled:opacity-50"
                     >
                       [ APPROVE ]
                     </button>

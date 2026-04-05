@@ -10,57 +10,64 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log the error to an error reporting service
-    console.error('SYSTEM_CRASH_LOG:', error);
+    // Log the error silently for your records
+    console.error('Application Error:', error);
   }, [error]);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6 font-mono text-red-500">
-      <div className="w-full max-w-md border border-red-500/20 bg-black p-10 text-center shadow-[0_0_50px_rgba(255,0,0,0.05)] relative overflow-hidden">
+    // Clean white background, elegant sans-serif font
+    <div className="min-h-screen bg-white flex items-center justify-center p-6 font-sans">
+      
+      {/* Soft rounded card with a light shadow */}
+      <div className="w-full max-w-md border border-gray-100 bg-white p-10 text-center shadow-2xl shadow-primary/5 relative overflow-hidden rounded-[32px]">
         
-        {/* CRITICAL ALARM DECORATION */}
-        <div className="absolute top-0 left-0 w-full h-1 bg-red-600 animate-pulse"></div>
+        {/* Soft pink ambient glow in the background */}
+        <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-primary/5 blur-[80px] rounded-full pointer-events-none"></div>
         
-        <h1 className="text-[60px] font-black tracking-tighter leading-none mb-4 opacity-80">CRITICAL</h1>
+        {/* Main Title: Black as requested */}
+        <h1 className="text-[50px] font-black tracking-tighter leading-none mb-4 text-black relative z-10">
+          ERROR 404
+        </h1>
         
-        <div className="space-y-4">
-          <h2 className="text-[12px] font-bold uppercase tracking-[0.3em] text-white">
-            // UNEXPECTED_SYSTEM_FAILURE
+        <div className="space-y-4 relative z-10">
+          <h2 className="text-[14px] font-black uppercase tracking-widest text-gray-800">
+            Unexpected Issue
           </h2>
-          <p className="text-[10px] text-gray-500 uppercase tracking-widest leading-relaxed">
-            A core protocol has malfunctioned. The current session has been interrupted to prevent data corruption.
+          <p className="text-[10px] text-gray-500 uppercase tracking-widest leading-relaxed font-bold px-4">
+            We encountered a problem while loading this page. Our team has been notified.
           </p>
           
-          {/* ERROR HASH DISPLAY */}
-          <div className="bg-red-500/5 border border-red-500/10 p-3 mt-4">
-            <p className="text-[8px] font-mono text-red-400/60 break-all uppercase">
-              ERR_ID: {error.digest || 'UNKNOWN_INSTANCE'}
+          {/* ERROR DISPLAY IN RED */}
+          <div className="bg-red-50 border border-red-100 p-4 rounded-2xl mt-4">
+            <p className="text-[10px] font-bold text-red-500 break-all uppercase tracking-widest">
+              {error.message || 'Unknown Error Occurred'}
             </p>
+            {error.digest && (
+              <p className="text-[8px] font-black text-red-400 mt-2 uppercase tracking-widest">
+                Ref Code: {error.digest}
+              </p>
+            )}
           </div>
         </div>
 
-        <div className="mt-10 flex flex-col gap-3">
+        <div className="mt-10 flex flex-col gap-3 relative z-10">
+          {/* Primary Action Button */}
           <button
             onClick={() => reset()}
-            className="w-full bg-red-600 text-white px-8 py-4 text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all shadow-lg"
+            className="w-full bg-primary text-white px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-primary-hover hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-primary/30"
           >
-            [ ATTEMPT_REBOOT ]
+            Try Again
           </button>
           
+          {/* Secondary Action Button */}
           <button 
             onClick={() => window.location.href = '/'}
-            className="w-full border border-gray-800 text-gray-500 px-8 py-3 text-[9px] font-black uppercase tracking-widest hover:border-red-500 hover:text-red-500 transition-all"
+            className="w-full bg-gray-50 text-gray-600 px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 hover:text-black transition-all"
           >
-            [ DISCONNECT_TO_HOME ]
+            Return to Collection
           </button>
         </div>
 
-        {/* SYSTEM STATUS FOOTER */}
-        <div className="mt-12 pt-6 border-t border-red-500/10">
-          <span className="text-[8px] text-gray-700 uppercase font-bold tracking-widest animate-pulse">
-            SYSTEM_INTEGRITY: COMPROMISED | KERNEL_PANIC
-          </span>
-        </div>
       </div>
     </div>
   );

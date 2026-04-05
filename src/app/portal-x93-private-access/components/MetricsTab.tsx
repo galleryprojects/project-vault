@@ -18,18 +18,18 @@ interface MetricsViewProps {
 export default function MetricsView({ vaultStats }: MetricsViewProps) {
   return (
     <div className="max-w-6xl animate-in fade-in duration-500">
-      <header className="mb-10 border-b border-[#FF6600]/20 pb-6 flex justify-between items-end">
+      <header className="mb-10 border-b border-[#3B82F6]/20 pb-6 flex justify-between items-end">
         <div>
           <h2 className="text-[24px] font-black uppercase tracking-widest text-white">Archive Stats</h2>
           <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2">// LIVE_STORAGE_METRICS</p>
         </div>
-        <span className="text-[10px] font-black text-[#FF6600] uppercase tracking-[0.2em] animate-pulse">STATUS: ONLINE</span>
+        <span className="text-[10px] font-black text-[#3B82F6] uppercase tracking-[0.2em] animate-pulse">STATUS: ONLINE</span>
       </header>
 
-      <div className="border border-[#FF6600]/20 bg-black/50 overflow-hidden shadow-2xl">
+      <div className="border border-[#3B82F6]/20 bg-black/50 overflow-hidden shadow-2xl">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="border-b border-[#FF6600]/20 text-[9px] font-black uppercase tracking-[0.2em] text-gray-500 bg-black">
+            <tr className="border-b border-[#3B82F6]/20 text-[9px] font-black uppercase tracking-[0.2em] text-gray-500 bg-black">
               <th className="p-5">MEDIA_SLUG</th>
               <th className="p-5 text-center">TIER_01</th>
               <th className="p-5 text-center">TIER_02</th>
@@ -46,14 +46,14 @@ export default function MetricsView({ vaultStats }: MetricsViewProps) {
               </tr>
             ) : (
               vaultStats.map((vault) => (
-                <tr key={vault.id} className="border-b border-[#FF6600]/10 hover:bg-[#FF6600]/5 transition-colors">
+                <tr key={vault.id} className="border-b border-[#3B82F6]/10 hover:bg-[#3B82F6]/5 transition-colors">
                   <td className="p-5">
                     <span className="text-[11px] font-bold uppercase tracking-widest text-white">{vault.id}</span>
                   </td>
                   <td className="p-5 text-center text-gray-400 text-[11px]">{vault.tier1 || 0}</td>
                   <td className="p-5 text-center text-gray-400 text-[11px]">{vault.tier2 || 0}</td>
                   <td className="p-5 text-center text-gray-400 text-[11px]">{vault.tier3 || 0}</td>
-                  <td className="p-5 text-right font-black text-[#FF6600] text-[12px]">{vault.total || 0}</td>
+                  <td className="p-5 text-right font-black text-[#3B82F6] text-[12px]">{vault.total || 0}</td>
                 </tr>
               ))
             )}

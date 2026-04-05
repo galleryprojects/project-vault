@@ -1,14 +1,14 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
+/* THIS REPLACES YOUR CONFIG FILE */
+@theme {
+  --color-primary: #FF69B4;
+  --color-primary-hover: #E91E63;
+  --color-primary-soft: #FFF5F7;
+}
+
+/* YOUR ELEGANT BACKGROUND */
 :root {
-  /* THE MASTER PINK CONTROLS */
-  --primary: #FF69B4;
-  --primary-hover: #E91E63;
-  --primary-soft: #FFF5F7;
-  
-  /* THE ELEGANT BACKGROUND */
   --background: #ffffff;
   --foreground: #1a1a1a;
 }
@@ -16,5 +16,5 @@
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: 'Inter', sans-serif; /* High-end fashion font */
+  font-family: 'Inter', sans-serif;
 }

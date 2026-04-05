@@ -4,37 +4,39 @@ import Link from 'next/link';
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6 font-mono text-[#FF6600]">
-      <div className="w-full max-w-md border border-[#FF6600]/20 bg-black p-10 text-center shadow-[0_0_50px_rgba(255,102,0,0.1)] relative overflow-hidden">
+    // Clean white background, elegant sans-serif font
+    <div className="min-h-screen bg-white flex items-center justify-center p-6 font-sans">
+      
+      {/* Soft rounded card with a light shadow */}
+      <div className="w-full max-w-md border border-gray-100 bg-white p-10 text-center shadow-2xl shadow-primary/5 relative overflow-hidden rounded-[32px]">
         
-        {/* GLITCH DECORATION */}
-        <div className="absolute top-0 left-0 w-full h-1 bg-[#FF6600] animate-pulse"></div>
+        {/* Soft pink ambient glow in the background */}
+        <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-primary/5 blur-[80px] rounded-full pointer-events-none"></div>
+        <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-primary/5 blur-[80px] rounded-full pointer-events-none"></div>
         
-        <h1 className="text-[80px] font-black tracking-tighter leading-none mb-4 opacity-80">404</h1>
+        {/* Main Title: Black as requested */}
+        <h1 className="text-[80px] font-black tracking-tighter leading-none mb-4 text-black relative z-10">
+          404
+        </h1>
         
-        <div className="space-y-4">
-          <h2 className="text-[12px] font-bold uppercase tracking-[0.3em]">// ACCESS_DENIED_OR_NOT_FOUND</h2>
-          <p className="text-[10px] text-gray-500 uppercase tracking-widest leading-relaxed">
-            The requested protocol address does not exist or has been terminated. 
-            Redirecting to home node for security.
+        <div className="space-y-4 relative z-10">
+          <h2 className="text-[14px] font-black uppercase tracking-widest text-gray-800">
+            Page Not Found
+          </h2>
+          <p className="text-[10px] text-red-400 uppercase tracking-widest leading-relaxed font-bold px-4">
+            The page you are looking for does not exist or has been moved. 
           </p>
         </div>
 
-        <div className="mt-10">
+        <div className="mt-10 relative z-10">
           <Link 
             href="/" 
-            className="inline-block border border-[#FF6600] text-[#FF6600] px-8 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-[#FF6600] hover:text-black transition-all"
+            className="block w-full bg-primary text-white px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-primary-hover hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-primary/30"
           >
-            [ RETURN_TO_BASE ]
+            Return to Collection
           </Link>
         </div>
 
-        {/* SYSTEM STATUS FOOTER */}
-        <div className="mt-12 pt-6 border-t border-[#FF6600]/10">
-          <span className="text-[8px] text-gray-700 uppercase font-bold tracking-widest">
-            NODE_STATUS: DISCONNECTED | ERROR_CODE: 0x93A4
-          </span>
-        </div>
       </div>
     </div>
   );

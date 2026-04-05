@@ -1,8 +1,8 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'Project Vault',
-  description: 'Secure Digital Repository',
+  title: 'Fine Media',
+  description: 'Premium Digital Access',
 }
 
 export default function RootLayout({
@@ -12,10 +12,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        {/* THE NUCLEAR BYPASS: Pulls the styling engine directly from the cloud */}
-        <script src="https://cdn.tailwindcss.com"></script>
-      </head>
+      {/* Removed the Cloud Bypass so the local Pink Theme works */}
       <body className="antialiased m-0 p-0 overflow-x-hidden">{children}</body>
     </html>
   )

@@ -19,62 +19,77 @@ export default function AccountPage() {
   };
 
   if (!profile) return (
-    <div className="min-h-screen bg-[#F7F7F5] flex items-center justify-center font-black uppercase text-[10px] tracking-[0.4em]">
-      DECRYPTING_IDENTITY...
+    <div className="min-h-screen bg-white flex items-center justify-center font-black uppercase text-[10px] tracking-[0.4em] text-primary animate-pulse">
+      Verifying Account...
     </div>
   );
 
   return (
-    <main className="min-h-screen bg-[#F7F7F5] relative overflow-hidden font-sans pb-12">
+    <main className="min-h-screen bg-white relative overflow-hidden font-sans pb-12 text-gray-900">
+      
+      {/* Elegant Pink Background Accents */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/5 blur-[120px] rounded-full pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary/5 blur-[120px] rounded-full pointer-events-none"></div>
+
       <div className="relative z-10 max-w-md mx-auto pt-24 px-6">
         
-        <div className="mb-8 border-b-2 border-gray-100 pb-4">
-          <h1 className="text-2xl font-black italic uppercase tracking-tighter">Security Profile</h1>
+        <div className="mb-10 border-b border-gray-100 pb-6 text-center">
+          <h1 className="text-2xl font-black italic uppercase tracking-tighter text-primary">Fine Media Profile</h1>
         </div>
 
-        {/* [USER ID CARD] Displays real USR- format ID from DB */}
-        <div className="bg-black rounded-[32px] p-8 mb-6 shadow-2xl relative overflow-hidden border border-white/5">
-          <div className="flex justify-between items-start mb-10">
-            <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center border border-white/10">👤</div>
-            <span className="text-[8px] font-black bg-[#FF6600]/20 text-[#FF6600] px-3 py-1 rounded-full tracking-widest">
-              ${profile.balance?.toFixed(2) || "0.00"} CREDITS
+        {/* [USER ID CARD] - Updated to Premium Pink Style */}
+        <div className="bg-white rounded-[32px] p-8 mb-8 shadow-2xl shadow-primary/10 relative overflow-hidden border border-primary/10">
+          <div className="absolute top-0 right-0 p-4">
+             <span className="text-[9px] font-black bg-primary/10 text-primary px-4 py-2 rounded-full tracking-widest uppercase">
+              ${profile.balance?.toFixed(2) || "0.00"} Balance
             </span>
           </div>
 
-          <div className="cursor-pointer group" onClick={handleCopy}>
-            <p className="text-[9px] font-black text-gray-500 uppercase tracking-[0.4em] mb-2">Unique Access ID</p>
-            <h2 className="text-2xl font-mono font-bold text-white tracking-widest mb-1 group-hover:text-[#FF6600] transition-colors">
+          <div className="mt-10 cursor-pointer group" onClick={handleCopy}>
+            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.4em] mb-3">Membership ID</p>
+            <h2 className="text-2xl font-mono font-bold text-gray-800 tracking-widest mb-2 group-hover:text-primary transition-colors">
               {profile.user_id_display || "ID_GENERATING"}
             </h2>
-            <p className="text-[7px] font-bold text-[#FF6600] uppercase tracking-widest animate-pulse">
+            <p className="text-[8px] font-black text-primary uppercase tracking-[0.2em]">
               [ {copyStatus} ]
             </p>
           </div>
         </div>
 
-        <div className="bg-white rounded-[24px] border border-gray-100 p-6 space-y-6 shadow-sm mb-6">
-          <div className="flex justify-between items-center border-b border-gray-50 pb-4">
+        {/* Member Details */}
+        <div className="bg-gray-50 rounded-[24px] border border-gray-100 p-8 space-y-6 shadow-sm mb-8">
+          <div className="flex justify-between items-center border-b border-gray-200 pb-5">
             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Username</span>
-            <span className="text-sm font-black uppercase">{profile.username}</span>
+            <span className="text-sm font-black uppercase text-gray-700">{profile.username}</span>
           </div>
-          <div className="flex justify-between items-center border-b border-gray-50 pb-4">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Access Status</span>
-            <span className="text-sm font-black uppercase text-[#FF6600]">
-              {profile.is_unlocked ? 'LIFETIME_UNLOCKED' : 'LIMITED_ACCESS'}
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</span>
+            <span className="text-sm font-black uppercase text-primary">
+              {profile.is_unlocked ? 'Premium Member' : 'Standard Member'}
             </span>
           </div>
         </div>
 
-        <div className="space-y-3">
-          {/* Linked to Auth update sequence */}
-          <button className="w-full bg-white border border-gray-200 text-black py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-gray-50 flex items-center justify-center gap-3">
-            <span>🔑</span> Change Access Passphrase
+        {/* Actions */}
+        <div className="space-y-4">
+          <button className="w-full bg-white border border-gray-200 text-gray-600 py-5 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-gray-50 hover:border-primary/30 hover:text-primary transition-all flex items-center justify-center gap-3 shadow-sm">
+            <span>🔐</span> Update Access Credentials
           </button>
           
-          <button onClick={() => logoutUser().then(() => window.location.href='/')} className="w-full bg-red-50 text-red-500 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-red-100 transition-all">
-            Terminate Session // Logout
+          <button 
+            onClick={() => logoutUser().then(() => window.location.href='/')}
+            className="w-full bg-red-50 text-red-400 py-5 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-red-100 transition-all shadow-sm"
+          >
+            Sign Out of Fine Media
           </button>
         </div>
+
+        <button 
+          onClick={() => window.location.href = '/'}
+          className="mt-12 text-[10px] font-black text-gray-400 hover:text-primary uppercase tracking-widest transition-all block mx-auto"
+        >
+          ← Return to Collection
+        </button>
 
       </div>
     </main>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getLedger } from '../actions/auth'; //
+import { getLedger } from '../actions/auth'; 
 
 // --- TYPES ---
 interface VaultEntry {
@@ -17,16 +17,15 @@ interface VaultEntry {
 export default function OrderHistory() {
   // --- STATE ---
   const [data, setData] = useState<VaultEntry[]>([]); 
-  const [loading, setLoading] = useState(true); // Added loading state
+  const [loading, setLoading] = useState(true); 
   const [timeFilter, setTimeFilter] = useState('7 Days');
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [activeMedia, setActiveMedia] = useState<VaultEntry | null>(null);
 
-  // --- [UPDATE] FETCH REAL DATA ---
+  // --- FETCH REAL DATA ---
   useEffect(() => {
     async function syncLedger() {
-      const history = await getLedger(); // Calls your server action
-      // Cast the response to match your VaultEntry interface
+      const history = await getLedger(); 
       setData(history as VaultEntry[]);
       setLoading(false);
     }
@@ -44,49 +43,52 @@ export default function OrderHistory() {
     .reduce((sum, item) => sum + item.amount, 0)
     .toFixed(2);
 
-  // Show a simple loading state while fetching from Supabase
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#F7F7F5] flex items-center justify-center font-black uppercase text-[10px] tracking-[0.5em]">
-        Syncing Ledger...
+      <main className="min-h-screen bg-white flex items-center justify-center font-black uppercase text-[10px] tracking-[0.5em] text-primary animate-pulse">
+        Syncing Collection...
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#F7F7F5] pt-24 px-4 font-sans text-black">
-      <div className="max-w-3xl mx-auto">
+    <main className="min-h-screen bg-white pt-24 px-4 font-sans text-gray-900 relative overflow-hidden">
+      
+      {/* Background Pink Accents */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/5 blur-[120px] rounded-full pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/5 blur-[120px] rounded-full pointer-events-none"></div>
+
+      <div className="max-w-3xl mx-auto z-10 relative">
         
-        {/* HEADER SECTION - Now Aligned Left */}
-        <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-8 border-b-2 border-gray-200 pb-6 gap-4">
+        {/* HEADER SECTION */}
+        <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-8 border-b border-gray-100 pb-8 gap-4">
           <div className="text-left">
-            <h1 className="text-3xl font-black italic uppercase tracking-tighter">
-              [ PROJECT-VAULT ]
+            <h1 className="text-3xl font-black italic uppercase tracking-tighter text-primary">
+              FINE MEDIA
             </h1>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
-              Encrypted Activity Ledger // 2026_PROTOCOL
+              Member Activity Ledger // Private Collection
             </p>
           </div>
           
-          {/* Total Spent remains anchored right on desktop, or stacks right on mobile */}
-          <div className="bg-black text-white p-4 rounded-2xl text-right min-w-[180px] self-end md:self-auto">
-            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+          <div className="bg-primary text-white p-6 rounded-[24px] text-right min-w-[200px] shadow-xl shadow-primary/20 self-end md:self-auto">
+            <p className="text-[9px] font-bold text-white/60 uppercase tracking-widest mb-1">
               Total Spent ({timeFilter})
             </p>
-            <p className="text-2xl font-black text-[#FF6600] tracking-tighter">
+            <p className="text-3xl font-black tracking-tighter">
               ${totalSpent}
             </p>
           </div>
         </div>
 
-        {/* 1. THE DROPDOWN & PROTOCOL FILTERS */}
-        <div className="flex flex-col md:flex-col items-end gap-4 mb-10">
-          <div className="flex-1 bg-white border border-gray-100 p-2 rounded-xl flex items-center justify-between px-4">
-            <span className="text-[10px] font-black uppercase text-gray-400">Time:</span>
+        {/* 1. FILTERS */}
+        <div className="flex flex-col md:flex-row items-center gap-4 mb-12">
+          <div className="flex-1 w-full bg-gray-50 border border-gray-100 p-3 rounded-2xl flex items-center justify-between px-6">
+            <span className="text-[10px] font-black uppercase text-gray-400">Timeframe:</span>
             <select 
               value={timeFilter}
               onChange={(e) => setTimeFilter(e.target.value)}
-              className="text-xs font-black uppercase bg-transparent outline-none cursor-pointer"
+              className="text-xs font-black uppercase bg-transparent outline-none cursor-pointer text-primary"
             >
               <option value="7 Days">7 Days</option>
               <option value="30 Days">30 Days</option>
@@ -94,15 +96,15 @@ export default function OrderHistory() {
             </select>
           </div>
 
-          <div className="flex-1 bg-white border border-gray-100 p-2 rounded-xl flex items-center justify-around">
+          <div className="flex-1 w-full bg-gray-50 border border-gray-100 p-2 rounded-2xl flex items-center justify-around">
             {['ALL', 'MEDIA', 'DEPOSIT'].map((type) => (
               <button
                 key={type}
                 onClick={() => setTypeFilter(type)}
-                className={`text-[10px] font-black px-4 py-2 rounded-lg transition-all uppercase ${
+                className={`text-[10px] font-black px-6 py-3 rounded-xl transition-all uppercase tracking-widest ${
                   typeFilter === type 
-                    ? 'bg-black text-white' 
-                    : 'text-gray-400 hover:text-black'
+                    ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                    : 'text-gray-400 hover:text-primary'
                 }`}
               >
                 {type}
@@ -111,87 +113,91 @@ export default function OrderHistory() {
           </div>
         </div>
 
-        {/* 2. THE ACTIVITY LOG */}
-        <div className="flex flex-col gap-4">
+        {/* 2. ACTIVITY LOG */}
+        <div className="flex flex-col gap-6">
           {filteredData.length > 0 ? (
             filteredData.map((item) => (
               <div 
                 key={item.id} 
-                className="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow"
+                className="bg-white border border-gray-100 p-8 rounded-[32px] shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all group"
               >
-                <div className="flex justify-between items-start mb-4">
+                <div className="flex justify-between items-start mb-6">
                   <div>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
-                      {item.type === 'MEDIA' ? 'VAULT' : 'INTAKE'} // {item.id}
+                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+                      {item.type === 'MEDIA' ? 'COLLECTION' : 'MEMBER INTAKE'} // #{item.id.slice(-6)}
                     </p>
-                    <h3 className="text-md font-black uppercase tracking-tight">{item.title}</h3>
+                    <h3 className="text-lg font-black uppercase tracking-tight text-gray-800">{item.title}</h3>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-black text-[#FF6600] tracking-tighter">
+                    <p className="text-xl font-black text-primary tracking-tighter">
                       ${item.amount.toFixed(2)}
                     </p>
-                    <span className="text-[8px] font-black bg-green-100 text-green-600 px-2 py-1 rounded-md uppercase">
+                    <span className="text-[9px] font-black bg-primary/10 text-primary px-3 py-1.5 rounded-full uppercase tracking-widest">
                       {item.status}
                     </span>
                   </div>
                 </div>
 
-                <div className="flex justify-between items-end border-t border-gray-50 pt-4">
+                <div className="flex justify-between items-end border-t border-gray-50 pt-6">
                   <p className="text-[10px] font-bold text-gray-400 uppercase">{item.date}</p>
                   {item.type === 'MEDIA' && (
                     <button 
                       onClick={() => setActiveMedia(item)}
-                      className="text-[10px] font-black bg-gray-100 hover:bg-black hover:text-white px-4 py-2 rounded-lg transition-all uppercase tracking-widest"
+                      className="text-[10px] font-black bg-gray-50 text-gray-500 hover:bg-primary hover:text-white px-6 py-3 rounded-xl transition-all uppercase tracking-widest shadow-sm"
                     >
-                      [ View Media ]
+                      View Gallery
                     </button>
                   )}
                 </div>
               </div>
             ))
           ) : (
-            <div className="text-center py-20 bg-white/50 rounded-3xl border-2 border-dashed border-gray-200">
-              <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.3em]">
-                System Offline // No Transactions Found
+            <div className="text-center py-24 bg-gray-50 rounded-[40px] border border-gray-100">
+              <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.4em]">
+                No Transactions Found
               </p>
             </div>
           )}
         </div>
 
-        <button className="mt-10 text-[10px] font-black text-gray-400 hover:text-black uppercase tracking-widest transition-all">
-          ← Back to Vaults
+        <button 
+          onClick={() => window.location.href = '/'}
+          className="mt-12 text-[10px] font-black text-gray-400 hover:text-primary uppercase tracking-widest transition-all block mx-auto"
+        >
+          ← Return to Gallery
         </button>
       </div>
 
-      {/* 3. THE CONTENT VIEWER (Slide-up Modal) */}
+      {/* 3. MEDIA VIEWER MODAL */}
       {activeMedia && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white w-full max-w-2xl rounded-t-[32px] md:rounded-[32px] overflow-hidden shadow-2xl transition-all transform animate-in slide-in-from-bottom duration-300">
-            <div className="p-8">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-sm font-black uppercase tracking-widest text-gray-400">
-                  Media Decrypted: {activeMedia.title}
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 backdrop-blur-md p-4">
+          <div className="bg-white w-full max-w-2xl rounded-t-[40px] md:rounded-[40px] overflow-hidden shadow-2xl transition-all transform animate-in slide-in-from-bottom duration-500 border border-white">
+            <div className="p-10">
+              <div className="flex justify-between items-center mb-8">
+                <h2 className="text-xs font-black uppercase tracking-widest text-primary">
+                  Premium Access: {activeMedia.title}
                 </h2>
                 <button 
                   onClick={() => setActiveMedia(null)}
-                  className="font-black text-xs bg-gray-100 px-3 py-1 rounded-full hover:bg-red-100 hover:text-red-600"
+                  className="font-black text-[10px] uppercase bg-gray-50 text-gray-400 px-4 py-2 rounded-full hover:bg-primary/10 hover:text-primary transition-all"
                 >
-                  CLOSE [X]
+                  Close [X]
                 </button>
               </div>
 
-              {/* Encrypted Player Placeholder */}
-              <div className="aspect-video bg-gray-100 rounded-2xl flex items-center justify-center border-2 border-gray-200 mb-6">
-                <p className="text-[10px] font-black uppercase tracking-[0.5em] text-gray-300 animate-pulse">
-                  Initializing Secure Stream...
+              {/* Placeholder */}
+              <div className="aspect-video bg-gray-50 rounded-[32px] flex items-center justify-center border border-gray-100 mb-8 relative overflow-hidden">
+                <div className="absolute inset-0 bg-primary/5 animate-pulse"></div>
+                <p className="text-[10px] font-black uppercase tracking-[0.5em] text-primary/40 relative z-10">
+                  Initializing Media...
                 </p>
               </div>
 
-              <div className="flex justify-between items-center bg-[#F7F7F5] p-4 rounded-2xl border border-gray-100">
-                <p className="text-[10px] font-bold text-gray-500 uppercase">
-                  File: <span className="text-black ml-2">{activeMedia.fileName}</span>
+              <div className="flex flex-col md:flex-row justify-between items-center bg-gray-50 p-6 rounded-[24px] gap-4">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  File: <span className="text-gray-900 ml-2">{activeMedia.fileName}</span>
                 </p>
-                <button className="bg-[#FF6600] text-white text-[10px] font-black px-6 py-3 rounded-xl hover:scale-105 transition-transform uppercase tracking-widest">
+                <button className="w-full md:w-auto bg-primary text-white text-[10px] font-black px-10 py-4 rounded-full hover:bg-primary-hover shadow-lg shadow-primary/20 transition-all uppercase tracking-widest">
                   Download
                 </button>
               </div>
