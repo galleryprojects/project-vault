@@ -79,7 +79,7 @@ export default function ArchiveManager({ vaultStats, setVaultStats }: any) {
       <input type="file" multiple accept={isVideoGate ? "video/*" : "image/*"} onChange={(e) => handleQuickAdd(e.target.files, tier)} className="absolute inset-0 opacity-0 cursor-pointer z-10" disabled={uploadingTier !== null} />
       <span className={`text-[14px] font-black ${isVideoGate ? 'text-[#FF6600]' : 'text-gray-700'} group-hover:scale-125 transition-transform`}>+</span>
       <span className={`text-[8px] font-black uppercase mt-1 ${isVideoGate ? 'text-[#FF6600]' : 'text-gray-500'}`}>
-        {uploadingTier === tier ? 'SYNCING...' : label}
+        {uploadingTier === tier ? 'Updating...' : label}
       </span>
     </div>
   );
@@ -211,9 +211,9 @@ export default function ArchiveManager({ vaultStats, setVaultStats }: any) {
             </div>
             <div className="flex gap-4">
               {Object.keys(pendingChanges).length > 0 && (
-                <button onClick={() => window.confirm("Discard all staged changes?") && setPendingChanges({})} className="bg-transparent border border-red-900 text-red-900 px-8 py-3 text-[10px] font-black uppercase hover:bg-red-500 hover:text-black transition-all">[ CANCEL_CHANGES ]</button>
+                <button onClick={() => window.confirm("Discard all staged changes?") && setPendingChanges({})} className="bg-transparent border border-red-900 text-red-900 px-8 py-3 text-[10px] font-black uppercase hover:bg-red-500 hover:text-black transition-all">CANCEL CHANGES</button>
               )}
-              <button onClick={handleGlobalSync} className={`bg-[#FF6600] text-black px-12 py-3 text-[10px] font-black uppercase hover:bg-white transition-all ${uploadingTier === 0 ? 'animate-pulse' : ''}`}>{uploadingTier === 0 ? '[ SYNCING... ]' : '[ SAVE_CHANGES ]'}</button>
+              <button onClick={handleGlobalSync} className={`bg-[#FF6600] text-black px-12 py-3 text-[10px] font-black uppercase hover:bg-white transition-all ${uploadingTier === 0 ? 'animate-pulse' : ''}`}>{uploadingTier === 0 ? 'Updating...' : 'Save Changes'}</button>
             </div>
           </div>
         )}

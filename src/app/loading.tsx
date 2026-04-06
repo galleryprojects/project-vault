@@ -37,7 +37,7 @@ export default function Loading() {
             </span>
           </div>
           <p className="text-[9px] text-gray-400 uppercase tracking-widest font-bold">
-            {isAdmin ? '// INITIALIZING_ENCRYPTED_SESSION' : 'Please Wait...'}
+            {isAdmin ? 'Session in Progress' : 'Please Wait...'}
           </p>
         </div>
       </div>

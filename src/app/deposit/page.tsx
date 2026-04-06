@@ -158,7 +158,7 @@ export default function DepositPage() {
                   </button>
                 </form>
               ) : (
-                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Secure Member Intake</p>
+                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Secure Membership</p>
               )}
             </div>
 

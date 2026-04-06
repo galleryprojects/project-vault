@@ -121,7 +121,7 @@ function VaultCard({ item, index, onClick, isProcessing, unlockedTiers }: { item
             </span>
           </div>
           <button className={`text-white text-[9px] font-black px-4 py-2 rounded-lg transition-colors uppercase tracking-widest flex items-center gap-1.5 ${isUnlocked ? 'bg-black hover:bg-gray-800' : 'bg-black hover:bg-[#FF6600]'}`}>
-            {isProcessing ? '...' : isUnlocked ? '🔓 OPEN' : '🔒 DECRYPT'}
+            {isProcessing ? '...' : isUnlocked ? '🔓 OPEN' : '🔒 UNLOCK'}
           </button>
         </div>
       </div>
@@ -162,7 +162,7 @@ export default function Home() {
     }
 
     // [SECURITY FIX] Ask for confirmation before charging $6.00
-    const confirmPurchase = window.confirm(`Authorize initial decryption of ${vaultId.replace(/-/g, ' ').toUpperCase()} for $6.00?`);
+    const confirmPurchase = window.confirm(`Do You Want To Unlock ${vaultId.replace(/-/g, ' ').toUpperCase()} for $6.00?`);
     
     // If they click "Cancel", stop the function immediately
     if (!confirmPurchase) {
@@ -182,10 +182,10 @@ export default function Home() {
       const updated = await getProfile();
       if (updated) setUserProfile(updated);
     } else if (result.error === "Insufficient Credits.") {
-      alert("Decryption failed: Insufficient Credits. Redirecting to deposit.");
+      alert("failed: Insufficient Credits. Redirecting to deposit.");
       router.push('/deposit');
     } else {
-      alert(result.error || "Decryption failed.");
+      alert(result.error || " failed.");
     }
     setIsVaultLoading(null);
   };
@@ -364,7 +364,7 @@ export default function Home() {
       {isLocked && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 bg-black/20 backdrop-blur-sm">
           <div className="w-full max-w-[220px] bg-black/95 border border-white/10 rounded-[24px] p-6 shadow-2xl text-center">
-            <h2 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-4">Initialize System</h2>
+            <h2 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-4">Unlock Gallery</h2>
             <div className="bg-white/5 rounded-xl py-4 mb-6">
               <span className="text-2xl font-black text-[#FF6600]">$3.00</span>
               <p className="text-[6px] font-bold text-gray-500 uppercase mt-1">Lifetime Entry Fee</p>

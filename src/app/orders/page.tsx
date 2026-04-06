@@ -46,7 +46,7 @@ export default function OrderHistory() {
   if (loading) {
     return (
       <main className="min-h-screen bg-white flex items-center justify-center font-black uppercase text-[10px] tracking-[0.5em] text-primary animate-pulse">
-        Syncing Collection...
+        Opening Collection...
       </main>
     );
   }
@@ -66,8 +66,9 @@ export default function OrderHistory() {
             <h1 className="text-3xl font-black italic uppercase tracking-tighter text-primary">
               FINE MEDIA
             </h1>
+            
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
-              Member Activity Ledger // Private Collection
+              View Past Purchases
             </p>
           </div>
           
@@ -189,7 +190,7 @@ export default function OrderHistory() {
               <div className="aspect-video bg-gray-50 rounded-[32px] flex items-center justify-center border border-gray-100 mb-8 relative overflow-hidden">
                 <div className="absolute inset-0 bg-primary/5 animate-pulse"></div>
                 <p className="text-[10px] font-black uppercase tracking-[0.5em] text-primary/40 relative z-10">
-                  Initializing Media...
+                  Opening Media...
                 </p>
               </div>
 

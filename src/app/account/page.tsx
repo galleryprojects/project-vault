@@ -20,7 +20,7 @@ export default function AccountPage() {
 
   if (!profile) return (
     <div className="min-h-screen bg-white flex items-center justify-center font-black uppercase text-[10px] tracking-[0.4em] text-primary animate-pulse">
-      Verifying Account...
+      Opening Profile...
     </div>
   );
 
