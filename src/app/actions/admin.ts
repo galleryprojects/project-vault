@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabaseServer';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { checkAdminBypass } from './admin-bypass';
 import { supabase } from '@/lib/supabase';
+// [PATCH 1] Import AWS SDK for Cloudflare R2
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
 // --- PROTOCOL INTERFACES ---
 interface VaultMedia {
@@ -26,6 +28,16 @@ const getAdminClient = () => {
     process.env.SUPABASE_SERVICE_ROLE_KEY! 
   );
 };
+
+// [PATCH 2] Initialize Cloudflare R2 Client
+const r2 = new S3Client({
+  region: "auto",
+  endpoint: process.env.R2_ENDPOINT!,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+  },
+});
 
 /**
  * [1] MEDIA_METRICS: ARCHIVE_STATS
@@ -95,17 +107,17 @@ export async function uploadVaultMedia(formData: FormData): Promise<AdminUploadR
       
       const fileName = `${currentVaultId}/${Date.now()}-${file.name.replace(/\s/g, '_')}`;
 
-      // 1. Upload to Storage
-      const { data: storageData, error: storageError } = await supabase.storage
-        .from('vault-assets')
-        .upload(fileName, file, { upsert: true });
+      // [PATCH 3] Upload to Cloudflare R2 instead of Supabase Storage
+      const fileBuffer = Buffer.from(await file.arrayBuffer());
+      await r2.send(new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: fileName,
+        Body: fileBuffer,
+        ContentType: file.type,
+      }));
 
-      if (storageError) throw new Error(`Storage Error: ${storageError.message}`);
-
-      // 2. Get URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('vault-assets')
-        .getPublicUrl(fileName);
+      // Generate the public URL (We use the endpoint for now, will update to custom domain later)
+      const publicUrl = `${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET_NAME}/${fileName}`;
 
       // 3. Insert metadata with Auto-Pilot logic
       const { error: dbError } = await supabase
@@ -218,10 +230,7 @@ export async function getPendingDeposits() {
   return data;
 }
 
-/**
- * [6] DEPOSIT_VERIFY: AUTHORIZE_SYNC
- * Hardened to prevent Loop Failures
- */
+
 /**
  * [6] DEPOSIT_VERIFY: AUTHORIZE_SYNC
  * Hardened with full exports and error logging
@@ -359,10 +368,19 @@ export async function deleteMediaAsset(mediaId: string, fileUrl: string) {
 
   const supabase = getAdminClient();
 
-  // Extract file path from URL to remove from storage
-  const filePath = fileUrl.split('vault-assets/')[1];
-  if (filePath) {
-    await supabase.storage.from('vault-assets').remove([filePath]);
+  // [PATCH 4] Delete from Cloudflare R2 instead of Supabase Storage
+  try {
+    // Extract the key from the URL (e.g. from https://.../bucket-name/vault/file.jpg)
+    // This handles both direct R2 endpoints and custom domains
+    const urlParts = fileUrl.split(`${process.env.R2_BUCKET_NAME}/`);
+    const fileKey = urlParts.length > 1 ? urlParts[1] : fileUrl.split('/').slice(-2).join('/');
+    
+    await r2.send(new DeleteObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME,
+      Key: fileKey,
+    }));
+  } catch (err) {
+    console.error("R2_DELETE_ERROR", err);
   }
 
   const { error } = await supabase
@@ -386,22 +404,30 @@ export async function addMediaToCollection(vaultId: string, tier: number, files:
 
   for (const file of files) {
     const fileName = `${vaultId}/${Date.now()}-${file.name.replace(/\s/g, '_')}`;
-    const { data: sData, error: sErr } = await supabase.storage
-      .from('vault-assets')
-      .upload(fileName, file);
+    
+    // [PATCH 5] Upload directly to Cloudflare R2
+    try {
+      const fileBuffer = Buffer.from(await file.arrayBuffer());
+      await r2.send(new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: fileName,
+        Body: fileBuffer,
+        ContentType: file.type,
+      }));
 
-    if (sErr) continue;
+      const publicUrl = `${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET_NAME}/${fileName}`;
 
-    const { data: { publicUrl } } = supabase.storage.from('vault-assets').getPublicUrl(fileName);
+      const { error: dbErr } = await supabase.from('vault_media').insert({
+        vault_id: vaultId,
+        file_url: publicUrl,
+        tier: tier,
+        display_order: 1 // Default as payload
+      });
 
-    const { error: dbErr } = await supabase.from('vault_media').insert({
-      vault_id: vaultId,
-      file_url: publicUrl,
-      tier: tier,
-      display_order: 1 // Default as payload
-    });
-
-    if (!dbErr) results.push(publicUrl);
+      if (!dbErr) results.push(publicUrl);
+    } catch (err) {
+      console.error("R2_UPLOAD_ERROR", err);
+    }
   }
 
   return { success: true, count: results.length };
@@ -416,23 +442,35 @@ export async function swapMediaFile(mediaId: string, oldFileUrl: string, newFile
 
   const supabase = getAdminClient();
 
-  // 1. Delete old file from storage
-  const oldPath = oldFileUrl.split('vault-assets/')[1];
-  if (oldPath) {
-    await supabase.storage.from('vault-assets').remove([oldPath]);
+  // [PATCH 6] Swap logic for Cloudflare R2
+  let publicUrl = "";
+
+  try {
+    // 1. Delete old file from R2
+    const urlParts = oldFileUrl.split(`${process.env.R2_BUCKET_NAME}/`);
+    const oldKey = urlParts.length > 1 ? urlParts[1] : oldFileUrl.split('/').slice(-2).join('/');
+    
+    await r2.send(new DeleteObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME,
+      Key: oldKey,
+    }));
+
+    // 2. Upload new file to R2
+    const vaultId = oldKey.split('/')[0];
+    const fileName = `${vaultId}/${Date.now()}-${newFile.name.replace(/\s/g, '_')}`;
+    const fileBuffer = Buffer.from(await newFile.arrayBuffer());
+    
+    await r2.send(new PutObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME,
+      Key: fileName,
+      Body: fileBuffer,
+      ContentType: newFile.type,
+    }));
+
+    publicUrl = `${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET_NAME}/${fileName}`;
+  } catch (err: any) {
+    return { success: false, error: err.message || "R2_SWAP_ERROR" };
   }
-
-  // 2. Upload new file (keep it in the same "folder" structure)
-  const vaultId = oldPath.split('/')[0];
-  const fileName = `${vaultId}/${Date.now()}-${newFile.name.replace(/\s/g, '_')}`;
-  
-  const { data, error: uploadErr } = await supabase.storage
-    .from('vault-assets')
-    .upload(fileName, newFile);
-
-  if (uploadErr) return { success: false, error: uploadErr.message };
-
-  const { data: { publicUrl } } = supabase.storage.from('vault-assets').getPublicUrl(fileName);
 
   // 3. Update Database row with new URL
   const { error: dbErr } = await supabase
