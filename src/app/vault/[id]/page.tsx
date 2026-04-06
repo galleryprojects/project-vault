@@ -29,8 +29,7 @@ function LockedTierSlider({ paddedMedia }: { paddedMedia: any[] }) {
   };
 
   return (
-    <div className="relative w-[150px] mx-auto h-[150px] bg-black rounded-full overflow-hidden shadow-2xl border border-white/5 group mb-8">
-
+    <div className="relative w-[280px] mx-auto aspect-square bg-black rounded-xl overflow-hidden shadow-2xl border border-white/5 group mb-8">
       {/* SLIDING IMAGES */}
       <div 
         className="flex h-full transition-transform duration-500 ease-out"
@@ -84,7 +83,7 @@ function LockedTierSlider({ paddedMedia }: { paddedMedia: any[] }) {
 export default function VaultInside() {
   const router = useRouter();
   const params = useParams();
-  const vaultId = params.id as string;
+  const vaultId = decodeURIComponent(params.id as string);
   
   const [balance, setBalance] = useState<number>(0);
   const [unlockedTiers, setUnlockedTiers] = useState<number[]>([]);

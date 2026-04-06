@@ -157,7 +157,7 @@ export default function Home() {
     
     // If they already own Tier 1, just open it! No confirmation needed to open.
     if (ownedTiers.includes(1)) {
-      window.open(`/vault/${vaultId}`, '_blank');
+      window.open(`/vault/${encodeURIComponent(vaultId)}`, '_blank');
       return; 
     }
 
@@ -178,7 +178,7 @@ export default function Home() {
         ...prev,
         [vaultId]: [...(prev[vaultId] || []), 1]
       }));
-      window.open(`/vault/${vaultId}`, '_blank');
+      window.open(`/vault/${encodeURIComponent(vaultId)}`, '_blank');
       const updated = await getProfile();
       if (updated) setUserProfile(updated);
     } else if (result.error === "Insufficient Credits.") {
