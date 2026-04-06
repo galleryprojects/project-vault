@@ -16,7 +16,7 @@ export default function InvisibleAdmin() {
   const router = useRouter();
   
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
-  const [activeTab, setActiveTab] = useState<'MEDIA_METRICS' | 'MEDIA_INJECTION' | 'MEDIA_MANAGER' | 'DEPOSIT_VERIFY'>('MEDIA_METRICS');
+  const [activeTab, setActiveTab] = useState<'MEDIA_TOTAL' | 'UPLOAD_MEDIA' | 'EDIT_MEDIA' | 'DEPOSIT_VERIFY'>('MEDIA_TOTAL');
   const [isMenuOpen, setIsMenuOpen] = useState(false); // Controls the slide-out menu
   
   const [vaultStats, setVaultStats] = useState<any[]>([]);
@@ -55,7 +55,7 @@ export default function InvisibleAdmin() {
         
         <div className="ml-6 flex items-center gap-4">
           <h1 className="text-[12px] font-black tracking-[0.2em] uppercase text-white hidden sm:block">Master Control</h1>
-          <span className="text-[10px] opacity-40 font-bold uppercase tracking-widest hidden md:block">// {activeTab}</span>
+          <span className="text-[10px] opacity-40 font-bold uppercase tracking-widest hidden md:block">{activeTab}</span>
         </div>
       </header>
 
@@ -73,14 +73,13 @@ export default function InvisibleAdmin() {
           <div className="p-8 border-b border-[#3B82F6]/20 relative">
             <div className="absolute top-0 left-0 w-full h-1 bg-[#3B82F6]" />
             <h1 className="text-[14px] font-black tracking-[0.2em] uppercase text-white">Ghost Terminal</h1>
-            <p className="text-[#3B82F6] text-[9px] font-bold uppercase tracking-widest mt-2 animate-pulse">// ZERO_TRACE_ACTIVE</p>
           </div>
           
           <nav className="flex-1 p-6 flex flex-col gap-3 mt-2 text-[10px] font-bold uppercase tracking-[0.15em]">
             {[
-              { id: 'MEDIA_METRICS', label: 'MEDIA_METRICS' },
-              { id: 'MEDIA_INJECTION', label: 'MEDIA_INJECTION' },
-              { id: 'MEDIA_MANAGER', label: 'MEDIA_MANAGER' },
+              { id: 'MEDIA_TOTAL', label: 'MEDIA_TOTAL' },
+              { id: 'UPLOAD_MEDIA', label: 'UPLOAD_MEDIA' },
+              { id: 'EDIT_MEDIA', label: 'EDIT_MEDIA' },
               { id: 'DEPOSIT_VERIFY', label: 'DEPOSIT_VERIFY' }
             ].map((item) => (
               <button 
@@ -110,10 +109,10 @@ export default function InvisibleAdmin() {
 
       {/* --- MAIN COMMAND VIEW --- */}
       <main className="flex-1 p-6 md:p-12 bg-[#0a0a0a]">
-        {activeTab === 'MEDIA_METRICS' && <MetricsView vaultStats={vaultStats} />}
+        {activeTab === 'MEDIA_TOTAL' && <MetricsView vaultStats={vaultStats} />}
         {activeTab === 'DEPOSIT_VERIFY' && <DepositMonitor />}
-        {activeTab === 'MEDIA_MANAGER' && <ArchiveManager vaultStats={vaultStats} setVaultStats={setVaultStats} />}
-        {activeTab === 'MEDIA_INJECTION' && <MediaInjection setVaultStats={setVaultStats} setActiveTab={setActiveTab} />}
+        {activeTab === 'EDIT_MEDIA' && <ArchiveManager vaultStats={vaultStats} setVaultStats={setVaultStats} />}
+        {activeTab === 'UPLOAD_MEDIA' && <MediaInjection setVaultStats={setVaultStats} setActiveTab={setActiveTab} />}
       </main>
 
     </div>

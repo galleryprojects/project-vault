@@ -190,7 +190,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
   const handleAddNewProtocol = (e: React.MouseEvent) => {
     e.preventDefault();
     if (!activeCover || !activeSlug || activePayload.length === 0) {
-      return alert("MISSING_DATA: // ACTIVE_SECTION_INCOMPLETE");
+      return alert("MISSING DATA: Complete The Form");
     }
 
     const stagedEntry = {
@@ -283,7 +283,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
     setDbVaultCount(stats.length);
     setActiveSlug(`##${sessionPrefix}${(stats.length + 1).toString().padStart(2, '0')}`);
     
-    setActiveTab('MEDIA_METRICS');
+    setActiveTab('MEDIA_TOTAL');
     setIsUploading(false);
   };
 
@@ -293,7 +293,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
     <div className="max-w-4xl animate-in fade-in duration-500 pb-32">
       <header className="mb-10 border-b border-[#3B82F6]/20 pb-6">
         <h2 className="text-[24px] font-black uppercase tracking-widest text-white">Media Factory</h2>
-        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2">// INJECT_ASSETS_TO_ENCRYPTED_BUCKET</p>
+        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2">Upload Media</p>
       </header>
 
       <form onSubmit={executeSynchronization} className="space-y-10">
@@ -311,7 +311,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
             }} 
             className={`flex-1 py-4 text-[10px] font-black uppercase transition-all ${uploadMode === 'SINGLE' ? 'bg-[#3B82F6] text-black shadow-[0_0_20px_rgba(59,130,246,0.3)]' : 'border border-[#3B82F6]/30 text-gray-500'}`}
           >
-            [ SINGLE_DROP_MODE ]
+            SINGLE UPLOAD MODE 
           </button>
 
           <button 
@@ -325,7 +325,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
             }} 
             className={`flex-1 py-4 text-[10px] font-black uppercase transition-all ${uploadMode === 'MULTI' ? 'bg-[#3B82F6] text-black shadow-[0_0_20px_rgba(59,130,246,0.3)]' : 'border border-[#3B82F6]/30 text-gray-500'}`}
           >
-            [ MULTIPLE_UPLOAD_MODE ]
+            MULTIPLE UPLOAD MODE 
           </button>
         </div>
 
@@ -365,13 +365,13 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
 
         <div className="border border-[#3B82F6]/20 bg-black/40 p-10 space-y-8 relative">
           {uploadMode === 'MULTI' && (
-            <div className="absolute top-4 right-6 text-[9px] font-black text-[#3B82F6] uppercase tracking-widest animate-pulse">// ACTIVE_FORM</div>
+            <div className="absolute top-4 right-6 text-[9px] font-black text-[#3B82F6] uppercase tracking-widest animate-pulse">ACTIVE FORM</div>
           )}
           
           {/* PRIMARY_COVER_ASSET */}
           <div className="bg-black border border-[#3B82F6]/20 p-6">
             <label className="text-[10px] font-black uppercase tracking-widest text-white mb-4 block flex justify-between">
-              <span>// PRIMARY_COVER_ASSET (DISPLAY_0)</span>
+              <span>Primary Cover Photo</span>
               <span className="text-gray-500 text-[8px]">*REQUIRED FOR HOMEPAGE</span>
             </label>
             
@@ -409,7 +409,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
           {/* MEDIA_METADATA */}
           <div className="grid grid-cols-2 gap-6 bg-black border border-[#3B82F6]/20 p-6">
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-white mb-3 block">GENERATED_PROTOCOL_ID</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-white mb-3 block">GENERATED ORDER ID</label>
               <input 
                 type="text" 
                 readOnly
@@ -434,7 +434,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
           {/* THE SPLIT ZONES */}
           <div className="grid grid-cols-2 gap-6">
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-white mb-3 block">// ZONE A: IMAGES (STANDARD TIERS)</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-white mb-3 block">ZONE A: IMAGES (STANDARD TIERS)</label>
               <div className="relative border-2 border-dashed border-gray-600 hover:border-[#3B82F6] bg-white/5 transition-all text-center p-16 rounded-2xl">
                 <input type="file" multiple onChange={handlePayloadSelect} accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer z-10" />
                 <div className="pointer-events-none">
@@ -445,7 +445,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
             </div>
 
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#3B82F6] mb-3 block">// ZONE B: VIDEOS (SNEAK PEEKS)</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-[#3B82F6] mb-3 block">ZONE B: VIDEOS (SNEAK PEEKS)</label>
               <div className="relative border-2 border-dashed border-[#3B82F6]/50 hover:border-[#3B82F6] bg-[#3B82F6]/10 transition-all text-center p-16 rounded-2xl shadow-[0_0_20px_rgba(59,130,246,0.1)]">
                 <input type="file" multiple onChange={handlePayloadSelect} accept="video/*" className="absolute inset-0 opacity-0 cursor-pointer z-10" />
                 <div className="pointer-events-none">
@@ -460,7 +460,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
           {activePayload.length > 0 && (
             <div className="border border-[#3B82F6]/20 bg-black p-6">
               <div className="flex justify-between items-center mb-6 border-b border-[#3B82F6]/20 pb-4">
-                <span className="text-[10px] font-black text-white tracking-widest uppercase">// PREVIEW_BUFFER</span>
+                <span className="text-[10px] font-black text-white tracking-widest uppercase">PREVIEW BUFFER</span>
                 <span className="text-[9px] font-bold text-[#3B82F6] tracking-widest uppercase">
                   STAGED: {activePayload.length} ASSETS | WEIGHT: {totalWeight.toFixed(2)} MB
                 </span>
@@ -503,7 +503,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
               onClick={handleAddNewProtocol}
               className="flex-1 bg-transparent border border-[#3B82F6] text-[#3B82F6] py-6 font-black uppercase text-[12px] tracking-[0.2em] hover:bg-[#3B82F6]/10 transition-all"
             >
-              [ + ADD_NEW ]
+              ADD NEW 
             </button>
           )}
           <button 
@@ -511,7 +511,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
             disabled={isUploading || (!activeCover && vaultStack.length === 0)}
             className={`flex-[2] bg-[#3B82F6] text-black py-6 font-black uppercase text-[12px] tracking-[0.3em] hover:bg-white transition-all disabled:opacity-20 disabled:hover:bg-[#3B82F6] ${isUploading ? 'animate-pulse' : ''}`}
           >
-            {isUploading ? '[ SYNCHRONIZING_TO_BUCKET... ]' : '[ EXECUTE_UPLOAD_SEQUENCE ]'}
+            {isUploading ? '[Uploading]' : 'Upload'}
           </button>
         </div>
 

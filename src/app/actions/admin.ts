@@ -82,7 +82,7 @@ export async function getAdminVaultStats() {
 
 
 /**
- * [2] MEDIA_INJECTION: THE_FACTORY (HARDENED & PARALLEL)
+ * [2] UPLOAD_MEDIA: THE_FACTORY (HARDENED & PARALLEL)
  */
 export async function uploadVaultMedia(formData: FormData): Promise<AdminUploadResponse> {
   try {
@@ -486,7 +486,7 @@ export async function swapMediaFile(mediaId: string, oldFileUrl: string, newFile
 }
 
 /**
- * [14] MEDIA_MANAGER: Update Specific Asset Details (Sneak Peeks)
+ * [14] EDIT_MEDIA: Update Specific Asset Details (Sneak Peeks)
  */
 export async function updateAssetMetadata(assetId: string, price: string, startTime: number) {
   const isAuthorized = await checkAdminBypass();

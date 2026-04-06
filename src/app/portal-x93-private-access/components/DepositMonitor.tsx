@@ -43,7 +43,7 @@ export default function DepositMonitor() {
       <header className="mb-10 border-b border-[#3B82F6]/20 pb-6 flex justify-between items-end">
         <div>
           <h2 className="text-[24px] font-black uppercase tracking-widest text-white">Inbound Credit Monitor</h2>
-          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2">// PENDING_GIFT_CARD_CLAIMS</p>
+          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2"> PENDING GIFTCARDS</p>
         </div>
         <div className="text-right">
           <p className="text-[10px] font-black text-[#3B82F6] uppercase tracking-[0.2em]">QUEUE_COUNT: {pendingDeposits.length}</p>
@@ -66,7 +66,7 @@ export default function DepositMonitor() {
             {pendingDeposits.length === 0 ? (
               <tr>
                 <td colSpan={6} className="p-10 text-center text-gray-700 text-[10px] tracking-widest uppercase">
-                  // NO_PENDING_CLAIMS_IN_MAIN_FRAME
+                  NO PENDING CLAIMS
                 </td>
               </tr>
             ) : (

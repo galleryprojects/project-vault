@@ -21,7 +21,7 @@ export default function MetricsView({ vaultStats }: MetricsViewProps) {
       <header className="mb-10 border-b border-[#3B82F6]/20 pb-6 flex justify-between items-end">
         <div>
           <h2 className="text-[24px] font-black uppercase tracking-widest text-white">Archive Stats</h2>
-          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2">// LIVE_STORAGE_METRICS</p>
+          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2">LIVE STORAGE METRICS</p>
         </div>
         <span className="text-[10px] font-black text-[#3B82F6] uppercase tracking-[0.2em] animate-pulse">STATUS: ONLINE</span>
       </header>
@@ -30,11 +30,11 @@ export default function MetricsView({ vaultStats }: MetricsViewProps) {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b border-[#3B82F6]/20 text-[9px] font-black uppercase tracking-[0.2em] text-gray-500 bg-black">
-              <th className="p-5">MEDIA_SLUG</th>
+              <th className="p-5">Media Id</th>
               <th className="p-5 text-center">TIER_01</th>
               <th className="p-5 text-center">TIER_02</th>
               <th className="p-5 text-center">TIER_03</th>
-              <th className="p-5 text-right">ASSET_TOTAL</th>
+              <th className="p-5 text-right">Total Asset</th>
             </tr>
           </thead>
           <tbody>

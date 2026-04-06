@@ -121,7 +121,7 @@ export default function ArchiveManager({ vaultStats, setVaultStats }: any) {
                       className="w-full flex justify-between items-center p-4 bg-black/60 hover:bg-[#FF6600]/10 transition-colors border-b border-[#FF6600]/5"
                     >
                       <span className="text-[10px] font-black text-white tracking-[0.2em]">
-                        // {tierName} <span className="text-[#FF6600] ml-2">[{assets.length} ASSETS]</span>
+                         {tierName} <span className="text-[#FF6600] ml-2">[{assets.length} ASSETS]</span>
                       </span>
                       <span className="text-[#FF6600] font-black">{isOpen ? '−' : '+'}</span>
                     </button>
@@ -143,12 +143,10 @@ export default function ArchiveManager({ vaultStats, setVaultStats }: any) {
                                 <OptimizedMedia 
                                   src={isVid ? `${asset.file_url}#t=${currentStart},${currentStart + 3}` : asset.file_url} 
                                   type={isVid ? 'video' : 'image'} 
-                                  // [GOD_MODE_PATCH]: Don't apply grayscale if it is the primary asset (display_order === 0)
                                   className={(isVid && asset.display_order !== 0) ? "grayscale group-hover:grayscale-0 transition-all" : ""}
-                                  // [SMART FIX]: Only the first 3 items in the grid get priority to kill LCP warnings
                                   priority={index < 3}
                                 />
-                                
+
                                 <div className="absolute top-2 left-2 px-2 py-1 bg-black/80 border border-[#FF6600]/30 text-[7px] font-black text-[#FF6600] z-10 uppercase">
                                   {isVid ? 'SNEAK_PEEK' : `T_0${asset.tier}`}
                                 </div>
@@ -193,7 +191,7 @@ export default function ArchiveManager({ vaultStats, setVaultStats }: any) {
         {selectedCollection && (
           <div className="bg-black border border-[#FF6600]/20 p-6 flex items-end gap-6 shadow-2xl relative">
             <div className="flex-1">
-              <label className="text-[8px] text-gray-600 block mb-2 uppercase font-black tracking-tighter tracking-widest">READ_ONLY_COLLECTION_ID</label>
+              <label className="text-[8px] text-gray-600 block mb-2 uppercase font-black tracking-tighter tracking-widest">Click Below to save changes</label>
               <input readOnly type="text" value={selectedCollection} className="w-full bg-[#0a0a0a] border border-[#FF6600]/10 p-3 text-gray-500 text-xs font-bold outline-none cursor-not-allowed uppercase" />
             </div>
             <div className="flex gap-4">
