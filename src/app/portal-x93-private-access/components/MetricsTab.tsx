@@ -41,7 +41,7 @@ export default function MetricsView({ vaultStats }: MetricsViewProps) {
             {vaultStats.length === 0 ? (
               <tr>
                 <td colSpan={5} className="p-10 text-center text-gray-700 text-[10px] tracking-widest uppercase">
-                  // NO_METRICS_AVAILABLE
+                  No Data Available
                 </td>
               </tr>
             ) : (

@@ -56,7 +56,8 @@ export default function ArchiveManager({ vaultStats, setVaultStats }: any) {
       await Promise.all(syncPromises);
       setCollectionAssets(await getCollectionMedia(selectedCollection));
       setPendingChanges({});
-      alert("VAULT_SYNCHRONIZED");
+      alert("Vault Updated");
+      setSelectedCollection(null);
     } finally {
       setUploadingTier(null);
     }
@@ -87,7 +88,8 @@ export default function ArchiveManager({ vaultStats, setVaultStats }: any) {
     <div className="flex h-[calc(100vh-100px)] gap-8 animate-in fade-in duration-500">
       
       {/* 1. LEFT RAIL */}
-      <div className="w-1/4 flex flex-col gap-4">
+      {!selectedCollection && (
+      <div className="w-1/4 flex flex-col gap-4 animate-in slide-in-from-left duration-300">
         <input type="text" placeholder="SEARCH_VAULTS..." className="bg-black border border-[#FF6600]/20 p-3 text-[10px] text-white outline-none focus:border-[#FF6600] uppercase font-black" onChange={(e) => setSearchQuery(e.target.value)} />
         <div className="flex-1 overflow-y-auto border border-[#FF6600]/10 space-y-1 scrollbar-hide">
           {vaultStats.filter((v: any) => v.id.includes(searchQuery.toLowerCase())).map((v: any) => {
@@ -99,8 +101,10 @@ export default function ArchiveManager({ vaultStats, setVaultStats }: any) {
               </button>
             );
           })}
+          
         </div>
       </div>
+      )}
 
       {/* 2. MAIN GALLERY (TIERED) */}
       <div className="flex-1 flex flex-col gap-6">
@@ -109,6 +113,17 @@ export default function ArchiveManager({ vaultStats, setVaultStats }: any) {
             <div className="h-full flex items-center justify-center text-gray-800 font-black text-[10px] tracking-[0.4em] uppercase">SELECT_VAULT_TO_MONITOR</div>
           ) : (
             <>
+              <div className="flex justify-between items-center mb-6 bg-black/40 p-4 border border-[#3B82F6]/20">
+                <button 
+                  onClick={() => setSelectedCollection(null)} 
+                  className="text-[10px] font-black text-gray-500 hover:text-white transition-colors uppercase tracking-widest"
+                >
+                  ← BACK_TO_SEARCH
+                </button>
+                <div className="text-[10px] font-black text-[#3B82F6] uppercase tracking-widest">
+                  Editing_Vault: <span className="text-white">{selectedCollection}</span>
+                </div>
+              </div>
               {[1, 2, 3, 99].map((tierNum) => {
                 const isOpen = openTiers.includes(tierNum);
                 const assets = collectionAssets.filter(a => a.tier === tierNum);

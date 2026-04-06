@@ -18,7 +18,7 @@ export default function DepositMonitor() {
   }, []);
 
   const handleApprove = async (dep: any) => {
-    const confirm = window.confirm(`// AUTHORIZE_CREDIT_SYNC\nUSER: ${dep.profiles?.username || 'UNKNOWN'}\nAMOUNT: +$${dep.amount}\n\nPROCEED?`);
+    const confirm = window.confirm(`Authorize Credit?\nUSER: ${dep.profiles?.username || 'UNKNOWN'}\nAMOUNT: +$${dep.amount}\n\nPROCEED?`);
     if (!confirm) return;
 
     setIsProcessingDeposit(dep.id);

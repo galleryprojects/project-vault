@@ -33,7 +33,7 @@ export default function LoginPage() {
           FINE MEDIA
         </h1>
         <p className="text-[10px] font-bold text-gray-400 tracking-[0.3em] uppercase mt-4">
-          PREMIUM ACCESS // MEMBER LOGIN
+          Welcome Back
         </p>
       </div>
 
