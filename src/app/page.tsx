@@ -35,9 +35,9 @@ function VaultCard({ item, index, onClick, isProcessing, unlockedTiers }: { item
           style={{ transform: `translateX(-${currentIndex * 100}%)` }}
         >
           {item.images.map((imgObj: any, idx: number) => {
-            const isImageVisible = (unlockedTiers.length === 0 && idx === 0) || unlockedTiers.includes(imgObj.tier);
-
-            // [THE FIX]: Widen the net. 
+            // [GOD_MODE_PATCH]: The first image is always visible. Others only if unlocked.
+            const isImageVisible = idx === 0 || unlockedTiers.includes(imgObj.tier);
+            
             // The cover image (idx === 0) for the first 8 cards (index < 8) gets VIP status.
             const isPriority = index < 15 && idx === 0;
 
@@ -47,21 +47,21 @@ function VaultCard({ item, index, onClick, isProcessing, unlockedTiers }: { item
                   <OptimizedMedia
                     src={imgObj.file_url}
                     type={isVideo(imgObj.file_url) ? 'video' : 'image'}
-                    className="opacity-80 group-hover:opacity-100 transition-all duration-700"
-                    // ADD PRIORITY HERE
+                    // [GOD_MODE_PATCH]: If it's the teaser (idx 0) OR they own it, it's clear.
+                    className="opacity-100 blur-0 group-hover:scale-105 transition-all duration-700"
                     priority={isPriority} 
                   />
                 ) : (
                   <OptimizedMedia
-                    src={imgObj.file_url}
+                  src="https://ltxdyydmerdqfvsvomwx.supabase.co/storage/v1/object/public/vault-assets/fake/fake.jpg"
                     type="image"
                     className="blur-lg opacity-50 scale-105 pointer-events-none"
                     priority={isPriority} 
                   />
                 )}
                                 
-                {/* REPLACED "ENCRYPTED" TEXT WITH PADLOCK SVG */}
-                {!isImageVisible && (
+                {/* PADLOCK SVG - Shows if the specific item is NOT owned */}
+                {!unlockedTiers.includes(imgObj.tier) && (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="bg-black/30 backdrop-blur-xl p-4 rounded-full border border-white/10 shadow-2xl">
                       <svg 
@@ -285,7 +285,6 @@ export default function Home() {
 
         setVaultItems(sortedItems);
       }
-
 
       setLoading(false);
     }

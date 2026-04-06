@@ -34,19 +34,18 @@ function LockedTierSlider({ paddedMedia }: { paddedMedia: any[] }) {
       {/* SLIDING IMAGES */}
       <div 
         className="flex h-full transition-transform duration-500 ease-out"
-          style={{ transform: `translateX(-${currentIndex * 100}%)` }}
-        >
-          {paddedMedia.map((item, idx) => (
-            <div key={item.id || `fake-${idx}`} className="min-w-full h-full relative flex items-center justify-center bg-black">
-              <OptimizedMedia 
-                src={item.file_url || ''} 
-                type={item.file_url?.match(/\.(mp4|webm|ogg|mov)$/i) ? 'video' : 'image'} 
-                className="absolute inset-0 blur-2xl opacity-40 scale-105" 
-                // [FIX] First 2 slides load instantly
-                priority={idx < 2} 
-              />
+        style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+      >
+        {paddedMedia.map((item, idx) => (
+          <div key={item.id || `fake-${idx}`} className="min-w-full h-full relative flex items-center justify-center bg-black">
+            <OptimizedMedia 
+              src={item.file_url || ''} 
+              type={item.file_url?.match(/\.(mp4|webm|ogg|mov)$/i) ? 'video' : 'image'} 
+              className={`absolute inset-0 scale-105 transition-all duration-700 ${idx === 0 ? 'opacity-100 blur-0' : 'blur-2xl opacity-40'}`}
+              priority={idx < 2} 
+            />
 
-            {/* PADLOCK OVERLAY */}
+            {/* PADLOCK OVERLAY - Stays on as long as it's not purchased */}
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="bg-black/40 backdrop-blur-md p-6 rounded-full border border-white/10 shadow-xl">
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -146,6 +145,32 @@ export default function VaultInside() {
     }));
     
     return [...realMedia, ...fakes];
+  };
+
+  // [GOD_MODE_PATCH] Generate a peek experience (1 real clear teaser, 6 blurred fakes)
+  const generatePeakMedia = (realMedia: any[]) => {
+    const TOTAL_SLOTS = 7;
+    // The hardcoded ghost url that keeps appearing
+    const FAKE_IMG_URL = "https://ltxdyydmerdqfvsvomwx.supabase.co/storage/v1/object/public/vault-assets/fake/fake.jpg";
+
+    if (realMedia.length === 0) return padToSeven([]); // Handle empty tier normally
+
+    // Sort by display order to ensure we grab the designated teaser (0)
+    const sortedRealMedia = [...realMedia].sort((a, b) => a.display_order - b.display_order);
+    
+    // Take ONLY the very first real image as teaser
+    const teaser = sortedRealMedia[0]; 
+    const fakesNeeded = TOTAL_SLOTS - 1; // Fill the rest with fakes
+
+    const fakes = Array.from({ length: fakesNeeded }).map((_, i) => ({
+      id: `fake-${i}`,
+      file_url: FAKE_IMG_URL,
+      tier: 99,
+      isFake: true
+    }));
+
+    // Returns: [ Teaser ( idx 0 ), Fake 1, Fake 2, ... ]
+    return [teaser, ...fakes];
   };
 
   // --- [3] HANDLERS ---
@@ -276,7 +301,7 @@ export default function VaultInside() {
             </div>
 
             <div className="flex gap-4 overflow-x-auto px-6 no-scrollbar">
-              {videoCollection.map((vid) => {
+              {videoCollection.map((vid, idx) => {
                 const isOwned = unlockedAssetIds.includes(vid.id.toString());
                 return (
                   <div 
@@ -288,7 +313,8 @@ export default function VaultInside() {
                     {/* Patch 3: Use optimized GIF simulation to save space */}
                      <video 
                       src={`${vid.file_url}#t=0,3`} 
-                      className={`w-full h-full object-cover transition-opacity duration-500 ${isOwned ? 'opacity-100' : 'opacity-40'}`} 
+                      // [GOD_MODE_PATCH] First video (index 0) is a clear teaser; others stay dark until owned
+                      className={`w-full h-full object-cover transition-opacity duration-500 ${(isOwned || idx === 0) ? 'opacity-100' : 'opacity-40'}`}
                       autoPlay={!isOwned} 
                       loop={!isOwned} 
                       muted 
@@ -414,8 +440,7 @@ export default function VaultInside() {
                       
                       {!isUnlocked ? (
                         <>
-                          <LockedTierSlider paddedMedia={padToSeven(tierMedia)} />
-
+                          <LockedTierSlider paddedMedia={generatePeakMedia(tierMedia)} />
                           {/* PAYWALL BLOCK (Light theme applied here) */}
                           <div className="p-10 bg-gray-50 rounded-[32px] border border-gray-100 text-center shadow-2xl shadow-primary/10 relative overflow-hidden">
                             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-40 bg-primary/10 blur-[60px] rounded-full -z-10"></div>

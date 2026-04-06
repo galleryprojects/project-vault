@@ -104,9 +104,11 @@ export async function uploadVaultMedia(formData: FormData): Promise<AdminUploadR
       const currentVaultId = (slugs[i] || globalVaultId).toLowerCase().trim();
       const isVideo = file.type.startsWith('video/');
       const displayOrder = i === 0 ? 0 : 1; // Index 0 is always the Cover
-      
-      const fileName = `${currentVaultId}/${Date.now()}-${file.name.replace(/\s/g, '_')}`;
 
+      // [GOD_MODE_PATCH] Strip hashtags from the folder path so it doesn't break the URL
+      const sanitizedVaultFolder = currentVaultId.replace(/#/g, '').replace(/\s/g, '_');
+      const fileName = `${sanitizedVaultFolder}/${Date.now()}-${file.name.replace(/\s/g, '_')}`;
+      
       // [PATCH 3] Upload to Cloudflare R2 instead of Supabase Storage
       const fileBuffer = Buffer.from(await file.arrayBuffer());
       await r2.send(new PutObjectCommand({
@@ -117,8 +119,7 @@ export async function uploadVaultMedia(formData: FormData): Promise<AdminUploadR
       }));
 
       // Generate the public URL (We use the endpoint for now, will update to custom domain later)
-      const publicUrl = `${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET_NAME}/${fileName}`;
-
+      const publicUrl = `${process.env.R2_PUBLIC_DOMAIN}/${fileName}`;
       // 3. Insert metadata with Auto-Pilot logic
       const { error: dbError } = await supabase
         .from('vault_media')
@@ -126,8 +127,7 @@ export async function uploadVaultMedia(formData: FormData): Promise<AdminUploadR
           vault_id: currentVaultId,
           file_url: publicUrl,
           media_type: isVideo ? 'video' : 'image',
-          tier: isVideo ? 99 : parseInt(tiers[i] || '1'),
-          price: isVideo ? parseFloat(prices[i] || '2.00') : 0,
+          tier: isVideo ? 99 : (parseInt(tiers[i] || '1') || 1),          price: isVideo ? parseFloat(prices[i] || '2.00') : 0,
           start_time: isVideo ? parseInt(startTimes[i] || '0') : 0,
           display_order: displayOrder
         });
@@ -403,8 +403,10 @@ export async function addMediaToCollection(vaultId: string, tier: number, files:
   const results = [];
 
   for (const file of files) {
-    const fileName = `${vaultId}/${Date.now()}-${file.name.replace(/\s/g, '_')}`;
-    
+    // [GOD_MODE_PATCH] Sanitize folder name by stripping hashtags and replacing spaces with underscores for Cloudflare R2 compatibility
+    const sanitizedVaultFolder = vaultId.replace(/#/g, '').replace(/\s/g, '_');
+    const fileName = `${sanitizedVaultFolder}/${Date.now()}-${file.name.replace(/\s/g, '_')}`;
+
     // [PATCH 5] Upload directly to Cloudflare R2
     try {
       const fileBuffer = Buffer.from(await file.arrayBuffer());
@@ -415,7 +417,7 @@ export async function addMediaToCollection(vaultId: string, tier: number, files:
         ContentType: file.type,
       }));
 
-      const publicUrl = `${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET_NAME}/${fileName}`;
+      const publicUrl = `${process.env.R2_PUBLIC_DOMAIN}/${fileName}`;
 
       const { error: dbErr } = await supabase.from('vault_media').insert({
         vault_id: vaultId,
@@ -457,7 +459,8 @@ export async function swapMediaFile(mediaId: string, oldFileUrl: string, newFile
 
     // 2. Upload new file to R2
     const vaultId = oldKey.split('/')[0];
-    const fileName = `${vaultId}/${Date.now()}-${newFile.name.replace(/\s/g, '_')}`;
+    const sanitizedVaultFolder = vaultId.replace(/#/g, '').replace(/\s/g, '_');
+    const fileName = `${sanitizedVaultFolder}/${Date.now()}-${newFile.name.replace(/\s/g, '_')}`;
     const fileBuffer = Buffer.from(await newFile.arrayBuffer());
     
     await r2.send(new PutObjectCommand({
@@ -467,9 +470,10 @@ export async function swapMediaFile(mediaId: string, oldFileUrl: string, newFile
       ContentType: newFile.type,
     }));
 
-    publicUrl = `${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET_NAME}/${fileName}`;
+    // [GOD_MODE_PATCH] Use Public CDN link for swapped files
+    publicUrl = `${process.env.R2_PUBLIC_DOMAIN}/${fileName}`;
   } catch (err: any) {
-    return { success: false, error: err.message || "R2_SWAP_ERROR" };
+    return { success: false, error: err.message ||"SWAP_ERROR" };
   }
 
   // 3. Update Database row with new URL

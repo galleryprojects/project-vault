@@ -42,7 +42,7 @@ export default function OptimizedMedia({ src, alt = "media", type, className = "
         priority={priority}
         loading={priority ? 'eager' : 'lazy'} 
         unoptimized
-        className={`object-cover transition-all duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+        className={`object-cover transition-all duration-700 ${(isLoaded || priority) ? 'opacity-100' : 'opacity-0'}`}
         onLoad={() => setIsLoaded(true)}
       />
     </div>
