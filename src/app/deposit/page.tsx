@@ -2,16 +2,33 @@
 
 import { useState, useEffect } from 'react';
 import { submitDeposit, getProfile } from '../actions/auth';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function DepositPage() {
   // --- UI STATES ---
   const [method, setMethod] = useState<'GIFTCARD' | 'CRYPTO' | null>(null);
   const [activeCoin, setActiveCoin] = useState<string | null>(null);
+  const [depositAddress, setDepositAddress] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const cryptoOptions = ['BTC', 'ETH', 'LTC', 'USDT'];
+  // Restricted to coins supported by our CryptoEngine
+  const cryptoOptions = ['BTC', 'LTC'];
+
+   // --- NEW: Colored Icon Mapping for Crypto Buttons ---
+  const coinIcons: Record<string, React.ReactNode> = {
+    BTC: (
+      <svg className="w-6 h-6 mb-2" viewBox="0 0 24 24" fill="none" stroke="#F7931A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M11.767 19.089c4.924.868 6.14-6.025 1.216-6.894m-1.216 6.894L5.86 18.047m5.908 1.042-.347 1.97m1.563-8.864c4.924.869 6.14-6.025 1.215-6.893m-1.215 6.893-3.94-.694m5.155-6.2L8.29 4.26m5.908 1.042.348-1.97M7.48 20.364l3.16-17.962"/>
+      </svg>
+    ),
+    LTC: (
+      <svg className="w-6 h-6 mb-2" viewBox="0 0 24 24" fill="none" stroke="#1E3A8A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M8 19h9"/><path d="M10 19l2.5-14"/><path d="M7 12l6-2"/>
+      </svg>
+    )
+  };
 
   // --- INITIALIZE DATA ---
   useEffect(() => {
@@ -31,11 +48,13 @@ export default function DepositPage() {
     formData.append('status', 'GENERATED');
 
     const result = await submitDeposit(formData);
-    if (result.success) {
+    // Modified to expect the dynamically generated address from the backend
+    if (result.success && result.address) {
       setActiveCoin(coin);
+      setDepositAddress(result.address);
       setMethod(null);
     } else {
-      alert(result.error);
+      alert(result.error || "Failed to generate address.");
     }
     setLoading(false);
   }
@@ -53,6 +72,7 @@ export default function DepositPage() {
   }
 
   const copyToClipboard = (text: string) => {
+    if (!text) return;
     navigator.clipboard.writeText(text);
     alert("ADDRESS COPIED TO CLIPBOARD.");
   };
@@ -88,31 +108,46 @@ export default function DepositPage() {
         {!submitted ? (
           <>
             {/* --- ACTIVE CRYPTO WALLET --- */}
-            {activeCoin && (
-              <div className="bg-primary/5 border-2 border-primary p-8 rounded-[32px] animate-in zoom-in duration-500 shadow-xl shadow-primary/10">
+            {activeCoin && depositAddress && (
+              <div className="bg-primary/5 border-2 border-primary p-4 rounded-[24px] animate-in zoom-in duration-500 shadow-xl shadow-primary/10">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xs font-black uppercase tracking-widest italic text-primary">
                     Channel Access: {activeCoin}
                   </h2>
                 </div>
                 
-                <div className="space-y-4">
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.3em]">Deposit Address:</p>
-                  <div className="flex gap-2">
-                    <div className="flex-1 bg-white border border-primary/20 p-4 rounded-2xl text-[10px] font-bold text-primary break-all leading-tight">
-                      bc1q_placeholder_static_address_777888999
+                <div className="space-y-2">
+                  {/* UPDATE THIS BLOCK IN DepositPage.tsx */}
+                  <div className="flex justify-center bg-white p-4 rounded-2xl border border-primary/20 mx-auto w-fit">
+                    <QRCodeSVG 
+                      value={activeCoin === 'BTC' ? `bitcoin:${depositAddress}` : `litecoin:${depositAddress}`} 
+                      size={120} 
+                      level="M" 
+                      includeMargin={false}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.3em]">Deposit Address:</p>
+                    <div className="flex gap-2">
+                      <div className="flex-1 bg-white border border-primary/20 p-4 rounded-2xl text-[10px] font-bold text-primary break-all leading-tight">
+                        {depositAddress}
+                      </div>
+                      <button 
+                        onClick={() => copyToClipboard(depositAddress)}
+                        className="bg-primary text-white px-6 rounded-2xl font-black text-[10px] uppercase hover:bg-primary-hover transition-all shadow-md shadow-primary/20"
+                      >
+                        Copy
+                      </button>
                     </div>
-                    <button 
-                      onClick={() => copyToClipboard('bc1q_placeholder_static_address_777888999')}
-                      className="bg-primary text-white px-6 rounded-2xl font-black text-[10px] uppercase hover:bg-primary-hover transition-all shadow-md shadow-primary/20"
-                    >
-                      Copy
-                    </button>
                   </div>
                   <div className="flex justify-between items-center pt-4 border-t border-primary/10">
-                    <p className="text-[8px] font-bold text-gray-400 uppercase">Status: Verifying...</p>
+                    <p className="text-[9px] font-bold text-black uppercase">Changing Wallet Type Will Not Affect Balance </p>
                     <button 
-                      onClick={() => setActiveCoin(null)}
+                      onClick={() => {
+                        setActiveCoin(null);
+                        setDepositAddress(null);
+                      }}
                       className="text-[9px] font-black text-primary uppercase tracking-widest border-b border-primary/30 pb-0.5 hover:border-primary transition-all"
                     >
                       Change Method
@@ -125,7 +160,7 @@ export default function DepositPage() {
             {/* --- GIFT CARD OPTION --- */}
             <div 
               onClick={() => { if(method !== 'GIFTCARD') setMethod('GIFTCARD'); }}
-              className={`p-8 rounded-[32px] border-2 transition-all cursor-pointer shadow-sm ${method === 'GIFTCARD' ? 'border-primary bg-primary/5 cursor-default shadow-primary/10' : 'border-gray-100 bg-gray-50 hover:border-primary/30'}`}
+              className={`p-4 rounded-[24px] border-2 transition-all cursor-pointer shadow-sm ${method === 'GIFTCARD' ? 'border-primary bg-primary/5 cursor-default shadow-primary/10' : 'border-gray-100 bg-gray-50 hover:border-primary/30'}`}
             >
               <div className="flex justify-between items-center mb-2">
                 <h2 className="text-lg font-black uppercase italic text-gray-800">💳 Gift Card</h2>
@@ -135,7 +170,7 @@ export default function DepositPage() {
               </div>
               
               {method === 'GIFTCARD' ? (
-                <form onSubmit={handleGiftCardSubmit} className="mt-8 space-y-6 animate-in slide-in-from-top-4 duration-300">
+                <form onSubmit={handleGiftCardSubmit} className="mt-4 space-y-4 animate-in slide-in-from-top-4 duration-300">
                   <div>
                     <label className="text-[8px] font-black uppercase text-gray-400 tracking-widest">Card Brand</label>
                     <input name="platform" placeholder="e.g. Apple, Steam, Razer Gold" required className="w-full bg-transparent border-b border-gray-200 py-3 text-sm font-bold text-primary outline-none focus:border-primary transition-all" />
@@ -146,7 +181,7 @@ export default function DepositPage() {
                   </div>
                   <div className="py-3 px-4 bg-primary/5 border border-primary/20 rounded-2xl">
                     <p className="text-[8px] font-bold text-primary uppercase tracking-widest leading-tight text-center">
-                      Notice: Verification usually takes 5-15 minutes
+                      Please Note: Verification usually takes 5-15 minutes
                     </p>
                   </div>
                   <div>
@@ -166,7 +201,7 @@ export default function DepositPage() {
             {!activeCoin && (
               <div 
                 onClick={() => { if(method !== 'CRYPTO') setMethod('CRYPTO'); }}
-                className={`p-8 rounded-[32px] border-2 transition-all cursor-pointer shadow-sm ${method === 'CRYPTO' ? 'border-primary bg-primary/5 cursor-default shadow-primary/10' : 'border-gray-100 bg-gray-50 hover:border-primary/30'}`}
+                className={`p-8 rounded-[24px] border-2 transition-all cursor-pointer shadow-sm ${method === 'CRYPTO' ? 'border-primary bg-primary/5 cursor-default shadow-primary/10' : 'border-gray-100 bg-gray-50 hover:border-primary/30'}`}
               >
                 <div className="flex justify-between items-center mb-2">
                   <h2 className="text-lg font-black uppercase italic text-gray-800">⚡ Cryptocurrency</h2>
@@ -176,16 +211,18 @@ export default function DepositPage() {
                 </div>
 
                 {method === 'CRYPTO' ? (
-                  <div className="mt-8 grid grid-cols-2 gap-3 animate-in slide-in-from-top-4 duration-300">
+                  <div className="mt-4 grid grid-cols-2 gap-3 animate-in slide-in-from-top-4 duration-300">
                     {cryptoOptions.map(opt => (
                       <button 
                         key={opt} 
                         onClick={(e) => { e.stopPropagation(); handleCryptoSelect(opt); }}
-                        className="py-5 bg-white border border-gray-100 rounded-2xl font-black text-[10px] text-gray-600 uppercase tracking-widest hover:border-primary hover:text-primary hover:shadow-lg hover:shadow-primary/5 transition-all active:scale-95"
+                        className="py-4 flex flex-col items-center justify-center bg-white border border-gray-100 rounded-2xl font-black text-[10px] text-gray-600 uppercase tracking-widest hover:border-primary hover:text-primary hover:shadow-lg hover:shadow-primary/5 transition-all active:scale-95"
                       >
+                        {coinIcons[opt]}
                         {opt}
                       </button>
                     ))}
+
                   </div>
                 ) : (
                   <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Instant Blockchain Transfer</p>

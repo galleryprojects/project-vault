@@ -3,6 +3,7 @@
 
 import { createClient } from '@/lib/supabaseServer';
 import { generateCryptoAddress } from '@/lib/crypto/CryptoEngine';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 
 // Helper to create a clean tracking ID for transactions (e.g., PV-XJ82K)
 const generateTrackingId = () => `PV-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
@@ -155,7 +156,7 @@ export async function unlockVault(vaultId: string, amount: number, tier: number 
   
 
 /**
- * [5] SUBMIT DEPOSIT
+ * [5] SUBMIT DEPOSIT (Bulletproof Edition)
  */
 export async function submitDeposit(formData: FormData) {
   const supabase = await createClient();
@@ -164,53 +165,101 @@ export async function submitDeposit(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "AUTH_REQUIRED" };
 
-  const coin = formData.get('coin') as 'BTC' | 'LTC';
-  const amount = parseFloat(formData.get('amount') as string);
+  const method = formData.get('method') as string;
+  const rawAmount = formData.get('amount');
+  // Safely parse amount: If it's missing (like in Crypto generation), default to null, NOT NaN.
+  const amount = rawAmount ? parseFloat(rawAmount as string) : null; 
 
   try {
-    // 2. Find the NEXT Index
-    // We look for the highest index used for this specific coin
-    const { data: lastDeposit } = await supabase
-      .from('deposits')
-      .select('derivation_index')
-      .eq('platform', coin)
-      .order('derivation_index', { ascending: false })
-      .limit(1)
-      .single();
+    // ==========================================
+    // BRANCH A: CRYPTOCURRENCY LOGIC
+    // ==========================================
+    if (method === 'CRYPTO') {
+      const coin = formData.get('platform') as 'BTC' | 'LTC';
 
-    const nextIndex = (lastDeposit?.derivation_index ?? -1) + 1;
+      // SMART RESUME: Check if user already has a pending deposit for this coin.
+      // If they refreshed the page, just give them their existing address back!
+      const { data: existingPending } = await supabase
+        .from('deposits')
+        .select('address, derivation_index')
+        .eq('user_id', user.id)
+        .eq('platform', coin)
+        .eq('status', 'PENDING')
+        .maybeSingle();
 
-    // 3. Generate the Unique Address
-    const uniqueAddress = generateCryptoAddress(coin, nextIndex);
+      if (existingPending && existingPending.address) {
+        return { 
+          success: true, 
+          address: existingPending.address,
+          index: existingPending.derivation_index 
+        };
+      }
 
-    // 4. Save to Database
-    const { error: dbError } = await supabase
-      .from('deposits')
-      .insert([{
-        user_id: user.id,
-        type: 'CRYPTO',
-        platform: coin,
-        amount: amount,
-        status: 'PENDING',
-        address: uniqueAddress,
-        derivation_index: nextIndex
-      }]);
+      // If no pending deposit exists, find the highest index across ALL users
+      // (Using .maybeSingle() prevents a database crash if the table is totally empty)
 
-    if (dbError) {
-      console.error("DB_INSERT_ERROR:", dbError);
-      return { error: "DATABASE_SYNC_FAILURE" };
+      const adminSupabase = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY! 
+      );
+
+
+      const { data: lastDeposit } = await adminSupabase
+        .from('deposits')
+        .select('derivation_index')
+        .eq('platform', coin)
+        .order('derivation_index', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const nextIndex = (lastDeposit?.derivation_index ?? -1) + 1;
+      const uniqueAddress = generateCryptoAddress(coin, nextIndex);
+
+      // Save new crypto session to Database
+      const { error: dbError } = await supabase
+        .from('deposits')
+        .insert([{
+          user_id: user.id,
+          type: 'CRYPTO',
+          platform: coin,
+          amount: amount, 
+          status: 'PENDING',
+          address: uniqueAddress,
+          derivation_index: nextIndex
+        }]);
+
+      if (dbError) throw dbError;
+
+      return { success: true, address: uniqueAddress, index: nextIndex };
     }
 
-    // 5. Return success + the address to show the user
-    return { 
-      success: true, 
-      address: uniqueAddress,
-      index: nextIndex 
-    };
+    // ==========================================
+    // BRANCH B: GIFT CARD LOGIC
+    // ==========================================
+    if (method === 'GIFTCARD') {
+      const platform = formData.get('platform') as string;
+      const code = formData.get('code') as string;
+
+      const { error: dbError } = await supabase
+        .from('deposits')
+        .insert([{
+          user_id: user.id,
+          type: 'GIFTCARD',
+          platform: platform,
+          code: code,
+          amount: amount,
+          status: 'PENDING'
+        }]);
+
+      if (dbError) throw dbError;
+      return { success: true };
+    }
+
+    return { error: "INVALID_METHOD" };
 
   } catch (err: any) {
-    console.error("CRYPTO_GEN_ERROR:", err);
-    return { error: err.message || "INTERNAL_ERROR" };
+    console.error("DEPOSIT_ERROR:", err);
+    return { error: "ERRORxxo" };
   }
 }
 
