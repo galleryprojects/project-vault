@@ -167,18 +167,13 @@ export async function submitDeposit(formData: FormData) {
 
   const method = formData.get('method') as string;
   const rawAmount = formData.get('amount');
-  // Safely parse amount: If it's missing (like in Crypto generation), default to null, NOT NaN.
   const amount = rawAmount ? parseFloat(rawAmount as string) : null; 
 
   try {
-    // ==========================================
-    // BRANCH A: CRYPTOCURRENCY LOGIC
-    // ==========================================
     if (method === 'CRYPTO') {
       const coin = formData.get('platform') as 'BTC' | 'LTC';
 
-      // SMART RESUME: Check if user already has a pending deposit for this coin.
-      // If they refreshed the page, just give them their existing address back!
+      // 1. Smart Resume: Return existing address if one is already pending
       const { data: existingPending } = await supabase
         .from('deposits')
         .select('address, derivation_index')
@@ -195,14 +190,11 @@ export async function submitDeposit(formData: FormData) {
         };
       }
 
-      // If no pending deposit exists, find the highest index across ALL users
-      // (Using .maybeSingle() prevents a database crash if the table is totally empty)
-
+      // 2. Generate New Address
       const adminSupabase = createAdminClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY! 
       );
-
 
       const { data: lastDeposit } = await adminSupabase
         .from('deposits')
@@ -215,7 +207,9 @@ export async function submitDeposit(formData: FormData) {
       const nextIndex = (lastDeposit?.derivation_index ?? -1) + 1;
       const uniqueAddress = generateCryptoAddress(coin, nextIndex);
 
-      // Save new crypto session to Database
+
+      // 3. IMPORTANT: Save to Database FIRST
+      // This ensures the row exists so the Webhook doesn't error out if it's fast.
       const { error: dbError } = await supabase
         .from('deposits')
         .insert([{
@@ -224,11 +218,34 @@ export async function submitDeposit(formData: FormData) {
           platform: coin,
           amount: amount, 
           status: 'PENDING',
-          address: uniqueAddress,
+          address:uniqueAddress,
           derivation_index: nextIndex
         }]);
 
       if (dbError) throw dbError;
+
+      // 4. NOW: Register with BlockCypher
+        try {
+          const BLOCKCYPHER_TOKEN = process.env.BLOCKCYPHER_TOKEN;
+          const WEBHOOK_URL = 'https://ltxdyydmerdqfvsvomwx.supabase.co/functions/v1/crypto-webhook';
+          
+          if (!BLOCKCYPHER_TOKEN) throw new Error("Missing Token");
+
+          const hookRes = await fetch(`https://api.blockcypher.com/v1/${coin.toLowerCase()}/main/hooks?token=${BLOCKCYPHER_TOKEN}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event: 'confirmed-tx', 
+              address: uniqueAddress,
+              url: WEBHOOK_URL
+            })
+          });
+
+          const hookData = await hookRes.json();
+          console.log("BLOCKCYPHER_HOOK_ID:", hookData.id);
+        } catch (webhookErr: any) {
+          console.error("WEBHOOK_REGISTRATION_FAILED:", webhookErr.message);
+        }
 
       return { success: true, address: uniqueAddress, index: nextIndex };
     }
