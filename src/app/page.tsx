@@ -137,6 +137,16 @@ export default function Home() {
   const [vaultItems, setVaultItems] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true);
   const [isVaultLoading, setIsVaultLoading] = useState<string | null>(null);
+
+  // --- NEW: Home Page Pagination State ---
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 8; // 4 rows on mobile (2 columns)
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    // Smooth scroll back to the top of the vault grid
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
   
   // TRACK WHICH TIERS ARE OWNED: e.g., { 'mary': [1, 2], 'test': [1] }
   const [unlockedVaultTiers, setUnlockedVaultTiers] = useState<Record<string, number[]>>({});
@@ -291,29 +301,58 @@ export default function Home() {
     loadData();
   }, []);
 
+  // NEW: Pagination Logic for the Render Block
+  const totalPages = Math.ceil(vaultItems.length / ITEMS_PER_PAGE);
+  const paginatedVaults = vaultItems.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+
     if (loading) {
     return <Loading />;
   }
   return (
     <main className="min-h-screen bg-[#F7F7F5] text-[#111] font-sans">
-      {/* NAVBAR */}
+      {/* NAVBAR - Bold & Left-Aligned Branding */}
       <nav className="fixed top-0 left-0 w-full h-[64px] bg-white border-b border-gray-200 z-[100] flex items-center px-4">
-        <div className="flex w-full max-w-7xl mx-auto items-center justify-between relative">
-          <button onClick={() => setIsMenuOpen(true)} className="flex flex-col justify-center gap-1.5 pr-5 border-r border-gray-200 h-8">
-            <div className="w-6 h-[2px] bg-black"></div>
-            <div className="w-6 h-[2px] bg-black"></div>
-            <div className="w-6 h-[2px] bg-black"></div>
-          </button>
-          <div className="absolute left-1/2 -translate-x-1/2">
-            <h1 className="text-sm font-black tracking-[0.3em] uppercase italic whitespace-nowrap">PROJECT-VAULT</h1>
+        <div className="w-full max-w-7xl mx-auto flex items-center justify-between">
+          
+          {/* LEFT GROUP: Menu + Branding */}
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setIsMenuOpen(true)} 
+              className="flex flex-col justify-center gap-1.5 pr-4 border-r border-gray-200 h-8 hover:opacity-70 transition-opacity"
+            >
+              <div className="w-6 h-[2.5px] bg-black"></div>
+              <div className="w-6 h-[2.5px] bg-black"></div>
+              <div className="w-6 h-[2.5px] bg-black"></div>
+            </button>
+            
+            <h1 className="text-[12px] sm:text-[16px] font-black tracking-[0.4em] uppercase italic whitespace-nowrap leading-none">
+              PROJECT-VAULT
+            </h1>
           </div>
+
+          {/* RIGHT GROUP: Balance & Deposit */}
           <div className="flex items-center gap-3">
             <div className="flex flex-col items-end leading-none">
-              <span className="text-[14px] font-black">${userProfile?.balance?.toFixed(2) || "0.00"}</span>
-              <span className="text-[7px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-0.5">Credits</span>
+              <span className="text-[14px] sm:text-[16px] font-black text-gray-900">
+                ${userProfile?.balance?.toFixed(2) || "0.00"}
+              </span>
+              <span className="text-[7px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-1">
+                Credits
+              </span>
             </div>
-            <button onClick={() => router.push('/deposit')} className="bg-primary text-white text-[10px] font-black px-5 py-2.5 rounded-full uppercase tracking-widest shadow-lg hover:bg-primary-hover transition-colors"> Deposit</button>
+            
+            <button 
+              onClick={() => router.push('/deposit')} 
+              className="bg-primary text-white text-[10px] font-black px-5 py-3 rounded-full uppercase tracking-widest shadow-xl shadow-primary/20 hover:bg-primary-hover transition-all active:scale-95"
+            >
+              Deposit
+            </button>
           </div>
+
         </div>
       </nav>
 
@@ -343,17 +382,65 @@ export default function Home() {
             <h2 className="text-[28px] font-black italic uppercase tracking-tighter leading-none">Active Vaults</h2>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4">
-            {vaultItems.map((item, index) => (
-              <VaultCard 
-                key={item.id} 
-                item={item} 
-                index={index} // [FIX] Passing the index prop here
-                isProcessing={isVaultLoading === item.id}
-                unlockedTiers={unlockedVaultTiers[item.id] || []} // Passes exactly which batches they own
-                onClick={() => handleVaultPurchase(item.id)}
-              />
-            ))}
+          {/* PAGINATED VAULT GRID */}
+          <div className="space-y-12">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4">
+              {paginatedVaults.map((item, index) => (
+                <VaultCard 
+                  key={item.id} 
+                  item={item} 
+                  index={index}
+                  isProcessing={isVaultLoading === item.id}
+                  unlockedTiers={unlockedVaultTiers[item.id] || []}
+                  onClick={() => handleVaultPurchase(item.id)}
+                />
+              ))}
+            </div>
+
+            {/* FINE SLIDER NAVIGATION */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-6 py-12 border-t border-gray-200/50">
+                  
+                  {/* PREVIOUS BUTTON */}
+                  <button 
+                    disabled={currentPage === 1}
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    className="w-12 h-12 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-900 shadow-md hover:border-primary hover:text-primary disabled:opacity-20 transition-all active:scale-90 z-10"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                  </button>
+
+                  {/* DOT INDICATOR SLIDER */}
+                  <div className="flex gap-2 items-center px-4 py-2 bg-gray-100/50 rounded-full border border-gray-200/50">
+                    {Array.from({ length: totalPages }).map((_, idx) => (
+                      <div 
+                        key={idx}
+                        onClick={() => handlePageChange(idx + 1)}
+                        className={`cursor-pointer transition-all duration-500 rounded-full ${
+                          currentPage === idx + 1 
+                            ? 'w-6 h-1.5 bg-primary' 
+                            : 'w-1.5 h-1.5 bg-gray-300 hover:bg-gray-400'
+                        }`}
+                      ></div>
+                    ))}
+                  </div>
+
+                  {/* NEXT BUTTON */}
+                  <button 
+                    disabled={currentPage === totalPages}
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    className="w-12 h-12 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-900 shadow-md hover:border-primary hover:text-primary disabled:opacity-20 transition-all active:scale-90 z-10"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                  </button>
+                  
+                </div>
+              )}
+
 
           </div>
 

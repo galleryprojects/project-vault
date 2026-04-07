@@ -230,33 +230,42 @@ export default function VaultInside() {
 
   // UPDATED: Supports a custom filename and prevents the TS error
   const handleDownload = async (url: string, fileNameOrEvent?: string | React.MouseEvent) => {
-    // If the second argument is a click event, stop it from bubbling
+    // Stop the click from opening the lightbox or triggering other UI
     if (typeof fileNameOrEvent !== 'string' && fileNameOrEvent?.stopPropagation) {
       fileNameOrEvent.stopPropagation();
     }
 
     try {
-      const response = await fetch(url);
+      // Direct fetch from R2/Cloudflare with CORS enabled
+      const response = await fetch(url, { 
+        method: 'GET', 
+        mode: 'cors' 
+      });
+
+      if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+      
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       
       const link = document.createElement('a');
       link.href = blobUrl;
       
-      // Use the provided filename or pull it from the URL
+      // Filename logic
       const finalName = typeof fileNameOrEvent === 'string' 
         ? fileNameOrEvent 
         : (url.split('/').pop()?.split('?')[0] || 'vault-asset');
         
       link.download = finalName;
-      
       document.body.appendChild(link);
       link.click();
+      
+      // Cleanup
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
-    } catch (error) {
-      console.error("Download failed:", error);
-      alert("Download failed. Please try again.");
+    } catch (error: any) {
+      console.error("R2_DIRECT_DOWNLOAD_ERROR:", error.message);
+      // Fail-safe: Just open the file in a new tab if fetch is blocked
+      window.open(url, '_blank');
     }
   };
 
