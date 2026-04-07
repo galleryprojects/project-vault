@@ -425,7 +425,7 @@ export default function VaultInside() {
                     <div className="flex flex-col">
                       <h2 className="text-[11px] font-black uppercase tracking-[0.4em] text-gray-400">Collection Level 0{tierNum}</h2>
                       <span className={`text-[8px] font-black uppercase tracking-widest mt-1 ${isUnlocked ? 'text-green-500' : 'text-gray-300'}`}>
-                        {isUnlocked ? '// FULL_ACCESS' : '// LOCKED'}
+                        {isUnlocked ? 'FULL_ACCESS' : '// LOCKED'}
                       </span>
                     </div>
                     <span className="text-[10px] font-black text-gray-300">

@@ -1,6 +1,8 @@
 'use server';
 
+
 import { createClient } from '@/lib/supabaseServer';
+import { generateCryptoAddress } from '@/lib/crypto/CryptoEngine';
 
 // Helper to create a clean tracking ID for transactions (e.g., PV-XJ82K)
 const generateTrackingId = () => `PV-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
@@ -156,32 +158,60 @@ export async function unlockVault(vaultId: string, amount: number, tier: number 
  * [5] SUBMIT DEPOSIT
  */
 export async function submitDeposit(formData: FormData) {
-  const supabase = await createClient(); 
-  const { data: { user } } = await supabase.auth.getUser();
+  const supabase = await createClient();
   
-  if (!user) return { error: "Authentication Required" };
+  // 1. Auth Guard
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "AUTH_REQUIRED" };
 
-  const code = formData.get('code') as string;
-  const method = formData.get('method') as string; 
-  const platform = formData.get('platform') as string;
-  const amountStr = formData.get('amount') as string;
-  const status = formData.get('status') as string || 'PENDING';
+  const coin = formData.get('coin') as 'BTC' | 'LTC';
+  const amount = parseFloat(formData.get('amount') as string);
 
-  const amount = amountStr ? parseFloat(amountStr) : null;
+  try {
+    // 2. Find the NEXT Index
+    // We look for the highest index used for this specific coin
+    const { data: lastDeposit } = await supabase
+      .from('deposits')
+      .select('derivation_index')
+      .eq('platform', coin)
+      .order('derivation_index', { ascending: false })
+      .limit(1)
+      .single();
 
-  const { error } = await supabase
-    .from('deposits')
-    .insert([{ 
-      user_id: user.id, 
-      code: code || 'AUTO_GEN', 
-      type: method,
-      platform: platform,
-      amount: amount,
-      status: status 
-    }]);
+    const nextIndex = (lastDeposit?.derivation_index ?? -1) + 1;
 
-  if (error) return { error: "Database Sync Error." };
-  return { success: true };
+    // 3. Generate the Unique Address
+    const uniqueAddress = generateCryptoAddress(coin, nextIndex);
+
+    // 4. Save to Database
+    const { error: dbError } = await supabase
+      .from('deposits')
+      .insert([{
+        user_id: user.id,
+        type: 'CRYPTO',
+        platform: coin,
+        amount: amount,
+        status: 'PENDING',
+        address: uniqueAddress,
+        derivation_index: nextIndex
+      }]);
+
+    if (dbError) {
+      console.error("DB_INSERT_ERROR:", dbError);
+      return { error: "DATABASE_SYNC_FAILURE" };
+    }
+
+    // 5. Return success + the address to show the user
+    return { 
+      success: true, 
+      address: uniqueAddress,
+      index: nextIndex 
+    };
+
+  } catch (err: any) {
+    console.error("CRYPTO_GEN_ERROR:", err);
+    return { error: err.message || "INTERNAL_ERROR" };
+  }
 }
 
 /**
@@ -192,7 +222,6 @@ export async function logoutUser() {
   await supabase.auth.signOut();
 }
 
-/**
 /**
  * [7] GET LEDGER
  * Fetches all transaction history (orders and deposits) for the user.

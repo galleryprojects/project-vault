@@ -17,6 +17,10 @@ CREATE TABLE IF NOT EXISTS deposits (
   amount NUMERIC,
   status TEXT,
   platform TEXT,
+  address TEXT,
+  derivation_index INT DEFAULT 0,
+  txid TEXT,
+  unique_deposit_address UNIQUE (address),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
