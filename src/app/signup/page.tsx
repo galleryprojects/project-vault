@@ -32,7 +32,7 @@ export default function SignUp() {
       <div className="z-10 text-center mb-10">
         {/* [3] Title uses text-primary for the Pink accent */}
         <h1 className="text-3xl font-black italic tracking-[0.4em] uppercase text-primary">
-          FINE MEDIA
+          Sy Exclusive
         </h1>
         <p className="text-[10px] font-bold text-gray-400 tracking-[0.3em] uppercase mt-4">
           Premium Buckets For Exclusive Collectors

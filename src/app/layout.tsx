@@ -1,9 +1,10 @@
+import { Metadata } from 'next';
 import './globals.css';
 
-export const metadata = {
-  title: 'Fine Media',
-  description: 'Premium Digital Access',
-}
+export const metadata: Metadata = {
+  title: "SY Exclusives | The Vault",
+  description: "Exclusive digital collections and private media vaults.",
+};
 
 export default function RootLayout({
   children,

@@ -36,12 +36,17 @@ export default function ArchiveManager({ vaultStats, setVaultStats }: any) {
     setOpenTiers(prev => prev.includes(tier) ? prev.filter(t => t !== tier) : [...prev, tier]);
   };
 
-  const handleUpdateAssetLocal = (id: string, updates: any) => {
-    setPendingChanges(prev => ({
-      ...prev,
-      [id]: { ...(prev[id] || { price: "2.00", start_time: 0 }), ...updates }
-    }));
-  };
+    // [FIXED]: We now pass the current asset values as fallbacks to prevent "2.00" overwrites
+    const handleUpdateAssetLocal = (id: string, updates: any, currentAsset: any) => {
+      setPendingChanges(prev => ({
+        ...prev,
+        [id]: { 
+          price: prev[id]?.price ?? currentAsset.price ?? "2.00", 
+          start_time: prev[id]?.start_time ?? currentAsset.start_time ?? 0,
+          ...updates 
+        }
+      }));
+    };
 
   const handleGlobalSync = async () => {
     const changeCount = Object.keys(pendingChanges).length;
@@ -174,11 +179,13 @@ export default function ArchiveManager({ vaultStats, setVaultStats }: any) {
                                       <span>Scrub: {currentStart}s</span>
                                       <span>${currentPrice}</span>
                                     </div>
-                                    <input type="range" min="0" max="60" value={currentStart} onChange={(e) => handleUpdateAssetLocal(asset.id, { start_time: parseInt(e.target.value) })} className="w-full h-1 bg-[#FF6600]/20 appearance-none cursor-pointer accent-[#FF6600]" />
+                                    <input type="range" min="0" max="60" value={currentStart} onChange={(e) => handleUpdateAssetLocal(asset.id, { start_time: parseInt(e.target.value) }, asset)} className="w-full h-1 bg-[#FF6600]/20 appearance-none cursor-pointer accent-[#FF6600]" />
                                     <div className="flex items-center bg-black border border-[#FF6600]/20 px-1 py-0.5">
                                       <span className="text-[8px] text-[#FF6600] mr-1">$</span>
-                                      <input type="number" step="0.01" value={currentPrice} onChange={(e) => handleUpdateAssetLocal(asset.id, { price: e.target.value })} className="bg-transparent text-white text-[9px] font-bold outline-none w-full" />
+                                      <input type="number" step="0.01" value={currentPrice} onChange={(e) => handleUpdateAssetLocal(asset.id, { price: e.target.value }, asset)} className="bg-transparent text-white text-[9px] font-bold outline-none w-full" />
                                     </div>
+
+
                                   </div>
                                 )}
                                 {!isVid && (

@@ -33,7 +33,7 @@ export default function Loading() {
           <div className="flex items-center justify-center gap-3">
             <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: primaryColor }}></span>
             <span className={`text-[12px] uppercase tracking-[0.4em] font-black ${textColor}`}>
-              {isAdmin ? 'System_Sync' : 'Fine Media'}
+              {isAdmin ? 'System_Sync' : 'Sy Exclusive'}
             </span>
           </div>
           <p className="text-[9px] text-gray-400 uppercase tracking-widest font-bold">

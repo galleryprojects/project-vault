@@ -424,7 +424,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
                 onChange={(e) => setActiveTier(e.target.value)}
                 className="w-full bg-[#0a0a0a] border border-[#3B82F6]/30 px-4 py-3 text-white text-xs font-bold outline-none focus:border-[#3B82F6] appearance-none"
               >
-                <option value="1">TIER_01 ($6.00)</option>
+                <option value="1">TIER_01 ($2.00)</option>
                 <option value="2">TIER_02 ($4.00)</option>
                 <option value="3">TIER_03 ($4.00)</option>
               </select>

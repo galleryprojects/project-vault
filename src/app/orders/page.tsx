@@ -64,7 +64,7 @@ export default function OrderHistory() {
         <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-8 border-b border-gray-100 pb-8 gap-4">
           <div className="text-left">
             <h1 className="text-3xl font-black italic uppercase tracking-tighter text-primary">
-              FINE MEDIA
+              Sy Exclusive
             </h1>
             
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">

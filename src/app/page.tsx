@@ -6,78 +6,46 @@ import { getProfile, logoutUser, getVaultCovers, unlockVault } from './actions/a
 import Loading from './loading';
 import OptimizedMedia from '@/components/OptimizedMedia';
 
-// [1] SUB-COMPONENT: VaultCard (With Dynamic Slider Blurring)
 function VaultCard({ item, index, onClick, isProcessing, unlockedTiers }: { item: any, index: number, onClick: () => void, isProcessing: boolean, unlockedTiers: number[] }) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const isUnlocked = unlockedTiers.length > 0; // True if they bought at least initial access
+  const isUnlocked = unlockedTiers.length > 0;
 
-  const isVideo = (url: string) => {
-  return url?.match(/\.(mp4|webm|ogg|mov)$/i);
-};
+  const isVideo = (url: string) => url?.match(/\.(mp4|webm|ogg|mov)$/i);
 
-  const nextSlide = (e: React.MouseEvent) => {
+  const handleNav = (direction: 'next' | 'prev', e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
-    setCurrentIndex((prev) => (prev === item.images.length - 1 ? 0 : prev + 1));
-  };
-
-  const prevSlide = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setCurrentIndex((prev) => (prev === 0 ? item.images.length - 1 : prev - 1));
+    setCurrentIndex((prev) => {
+      if (direction === 'next') return prev === item.images.length - 1 ? 0 : prev + 1;
+      return prev === 0 ? item.images.length - 1 : prev - 1;
+    });
   };
 
   return (
     <div onClick={onClick} className="group cursor-pointer bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm flex flex-col transition-all hover:shadow-md hover:-translate-y-1">
-      
-      {/* IMAGE SLIDER */}
       <div className="relative aspect-square w-full bg-black overflow-hidden">
-        <div 
-          className="flex h-full transition-transform duration-500 ease-out" 
-          style={{ transform: `translateX(-${currentIndex * 100}%)` }}
-        >
-          {item.images.map((imgObj: any, idx: number) => {
-            // [GOD_MODE_PATCH]: The first image is always visible. Others only if unlocked.
-            const isImageVisible = idx === 0 || unlockedTiers.includes(imgObj.tier);
-            
-            // The cover image (idx === 0) for the first 8 cards (index < 8) gets VIP status.
-            const isPriority = index < 15 && idx === 0;
+        {/* Global Processing Overlay (For Unlocks) */}
+        {isProcessing && (
+          <div className="absolute inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-center justify-center animate-in fade-in duration-200">
+            <div className="w-8 h-8 border-[3px] border-primary/20 border-t-primary rounded-full animate-spin"></div>
+          </div>
+        )}
 
+        <div className="flex h-full transition-transform duration-500 ease-out z-10" style={{ transform: `translateX(-${currentIndex * 100}%)` }}>
+          {item.images.map((imgObj: any, idx: number) => {
+            const isImageVisible = idx === 0 || unlockedTiers.includes(imgObj.tier);
+            const isPriority = index < 15 && idx === 0;
             return (
               <div key={idx} className="min-w-full h-full flex items-center justify-center relative bg-black">
                 {isImageVisible ? (
-                  <OptimizedMedia
-                    src={imgObj.file_url}
-                    type={isVideo(imgObj.file_url) ? 'video' : 'image'}
-                    // [GOD_MODE_PATCH]: If it's the teaser (idx 0) OR they own it, it's clear.
-                    className="opacity-100 blur-0 group-hover:scale-105 transition-all duration-700"
-                    priority={isPriority} 
-                  />
+                  <OptimizedMedia src={imgObj.file_url} type={isVideo(imgObj.file_url) ? 'video' : 'image'} className="opacity-100 blur-0 group-hover:scale-105 transition-all duration-700" priority={isPriority} />
                 ) : (
-                  <OptimizedMedia
-                  src="https://ltxdyydmerdqfvsvomwx.supabase.co/storage/v1/object/public/vault-assets/fake/fake.jpg"
-                    type="image"
-                    className="blur-lg opacity-50 scale-105 pointer-events-none"
-                    priority={isPriority} 
-                  />
+                  <OptimizedMedia src="https://ltxdyydmerdqfvsvomwx.supabase.co/storage/v1/object/public/vault-assets/fake/fake.jpg" type="image" className="blur-lg opacity-50 scale-105 pointer-events-none" priority={isPriority} />
                 )}
-                                
-                {/* PADLOCK SVG - Shows if the specific item is NOT owned */}
                 {!unlockedTiers.includes(imgObj.tier) && (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="bg-black/30 backdrop-blur-xl p-4 rounded-full border border-white/10 shadow-2xl">
-                      <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        width="24" 
-                        height="24" 
-                        viewBox="0 0 24 24" 
-                        fill="none" 
-                        stroke="white" 
-                        strokeWidth="2.5" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round"
-                      >
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                      </svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                     </div>
                   </div>
                 )}
@@ -86,41 +54,28 @@ function VaultCard({ item, index, onClick, isProcessing, unlockedTiers }: { item
           })}
         </div>
 
-        {/* SLIDER CONTROLS */}
         {item.images.length > 1 && (
           <div className="absolute inset-0 flex items-center justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity z-30">
-            <button onClick={prevSlide} className="w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-[10px] shadow-sm hover:bg-white transition-all">←</button>
-            <button onClick={nextSlide} className="w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-[10px] shadow-sm hover:bg-white transition-all">→</button>
+            <button onClick={(e) => handleNav('prev', e)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-[12px] shadow-lg hover:bg-primary hover:text-white transition-all text-black font-black">←</button>
+            <button onClick={(e) => handleNav('next', e)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-[12px] shadow-lg hover:bg-primary hover:text-white transition-all text-black font-black">→</button>
           </div>
         )}
 
-        {/* PROGRESS DOTS (Adjusted for 30 items) */}
         {item.images.length > 1 && (
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-[2px] z-30 w-[90%] justify-center flex-wrap">
             {item.images.map((_: any, idx: number) => (
-              <div 
-                key={idx} 
-                className={`h-1 rounded-full transition-all duration-300 ${idx === currentIndex ? 'w-3 bg-[#FF6600]' : 'w-1 bg-white/50'}`}
-              ></div>
+              <div key={idx} className={`h-1 rounded-full transition-all duration-300 ${idx === currentIndex ? 'w-3 bg-primary' : 'w-1 bg-white/50'}`}></div>
             ))}
           </div>
         )}
-
-        <div className="absolute inset-0 border-[3px] border-[#FF6600] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20"></div>
+        <div className="absolute inset-0 border-[3px] border-primary opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20"></div>
       </div>
       
-      {/* CARD FOOTER */}
       <div className="p-4 bg-white relative z-10">
-        <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-tight truncate mb-2">
-          {item.title}
-        </h3>
+        <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-tight truncate mb-2">{item.title}</h3>
         <div className="flex justify-between items-center">
-          <div className="flex flex-col leading-none">
-            <span className={`text-[14px] font-black ${isUnlocked ? 'text-[#00FF00]' : 'text-[#FF6600]'}`}>
-              {isUnlocked ? 'OWNED' : `$${item.price}`}
-            </span>
-          </div>
-          <button className={`text-white text-[9px] font-black px-4 py-2 rounded-lg transition-colors uppercase tracking-widest flex items-center gap-1.5 ${isUnlocked ? 'bg-black hover:bg-gray-800' : 'bg-black hover:bg-[#FF6600]'}`}>
+          <span className={`text-[14px] font-black ${isUnlocked ? 'text-[#00FF00]' : 'text-primary'}`}>{isUnlocked ? 'OWNED' : `$${item.price}`}</span>
+          <button className={`text-white text-[9px] font-black px-4 py-2 rounded-lg transition-colors uppercase tracking-widest ${isUnlocked ? 'bg-black hover:bg-gray-800' : 'bg-black hover:bg-primary'}`}>
             {isProcessing ? '...' : isUnlocked ? '🔓 OPEN' : '🔒 UNLOCK'}
           </button>
         </div>
@@ -140,12 +95,24 @@ export default function Home() {
 
   // --- NEW: Home Page Pagination State ---
   const [currentPage, setCurrentPage] = useState(1);
+  const [isPageLoading, setIsPageLoading] = useState(false);
   const ITEMS_PER_PAGE = 8; // 4 rows on mobile (2 columns)
+  const FAKE_ITEMS_COUNT = 16;
 
+  // [UPDATED]: Adds the delay and loading state
   const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
-    // Smooth scroll back to the top of the vault grid
+    if (isPageLoading) return; // Prevent spam-clicking
+
+    setIsPageLoading(true);
+    
+    // Scroll to top immediately so they see the loading spinner
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // 600ms delay to show the professional "loading next page" spinner
+    setTimeout(() => {
+      setCurrentPage(newPage);
+      setIsPageLoading(false);
+    }, 600);
   };
   
   // TRACK WHICH TIERS ARE OWNED: e.g., { 'mary': [1, 2], 'test': [1] }
@@ -171,8 +138,8 @@ export default function Home() {
       return; 
     }
 
-    // [SECURITY FIX] Ask for confirmation before charging $6.00
-    const confirmPurchase = window.confirm(`Do You Want To Unlock ${vaultId.replace(/-/g, ' ').toUpperCase()} for $6.00?`);
+    // [SECURITY FIX] Ask for confirmation before charging $2.00
+    const confirmPurchase = window.confirm(`Do You Want To Unlock ${vaultId.replace(/-/g, ' ').toUpperCase()} for $2.00?`);
     
     // If they click "Cancel", stop the function immediately
     if (!confirmPurchase) {
@@ -180,7 +147,7 @@ export default function Home() {
     }
 
     setIsVaultLoading(vaultId);
-    const result = await unlockVault(vaultId, 6.00, 1);
+    const result = await unlockVault(vaultId, 2.00, 1);
 
     if (result.success) {
       // Add Tier 1 to their owned list immediately
@@ -278,7 +245,7 @@ export default function Home() {
           return {
             id: c.vault_id,
             title: c.vault_id.replace(/-/g, ' '),
-            price: "6.00", 
+            price: "2.00", 
             images: mediaArray 
           };
         });
@@ -301,17 +268,35 @@ export default function Home() {
     loadData();
   }, []);
 
-  // NEW: Pagination Logic for the Render Block
-  const totalPages = Math.ceil(vaultItems.length / ITEMS_PER_PAGE);
-  const paginatedVaults = vaultItems.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+  // --- NEW: INTEGRATED PAGINATION LOGIC ---
+  // 1. Calculate totals based on REAL + FAKE items
+  const totalVirtualItems = vaultItems.length + FAKE_ITEMS_COUNT;
+  const totalPages = Math.ceil(totalVirtualItems / ITEMS_PER_PAGE);
 
+  // 2. Determine indices for the CURRENT page
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  // const endIndex = startIndex + ITEMS_PER_PAGE; // not strictly needed for logic below
 
-    if (loading) {
+  // 3. Generate exactly 8 slots for the current page
+  const currentSlots = Array.from({ length: ITEMS_PER_PAGE }).map((_, index) => {
+    const globalIndex = startIndex + index;
+
+    // If the index points to a real item, return it
+    if (globalIndex < vaultItems.length) {
+      return { type: 'real', data: vaultItems[globalIndex] };
+    } 
+    // If the index is within the "fake" range, return a placeholder marker
+    else if (globalIndex < totalVirtualItems) {
+      return { type: 'fake', id: `fake-${globalIndex}` };
+    }
+    // Otherwise (if we go beyond 24 total slots), return null
+    return null;
+  }).filter(Boolean); // Cleans up any undefined slots
+
+  if (loading) {
     return <Loading />;
   }
+
   return (
     <main className="min-h-screen bg-[#F7F7F5] text-[#111] font-sans">
       {/* NAVBAR - Bold & Left-Aligned Branding */}
@@ -330,7 +315,7 @@ export default function Home() {
             </button>
             
             <h1 className="text-[12px] sm:text-[16px] font-black tracking-[0.4em] uppercase italic whitespace-nowrap leading-none">
-              PROJECT-VAULT
+              Sy Exclusives
             </h1>
           </div>
 
@@ -382,24 +367,51 @@ export default function Home() {
             <h2 className="text-[28px] font-black italic uppercase tracking-tighter leading-none">Active Vaults</h2>
           </div>
 
-          {/* PAGINATED VAULT GRID */}
-          <div className="space-y-12">
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4">
-              {paginatedVaults.map((item, index) => (
-                <VaultCard 
-                  key={item.id} 
-                  item={item} 
-                  index={index}
-                  isProcessing={isVaultLoading === item.id}
-                  unlockedTiers={unlockedVaultTiers[item.id] || []}
-                  onClick={() => handleVaultPurchase(item.id)}
-                />
+            {/* THE VAULT GRID WRAPPER (With Pagination Loading) */}
+            <div className="relative max-w-7xl mx-auto mt-24 min-h-[600px]">
+            
+            {/* [PAGINATION SPINNER]: This only shows when isPageLoading is true */}
+            {isPageLoading && (
+              <div className="absolute inset-0 z-[100] bg-[#F7F7F5]/80 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-300 rounded-[32px]">
+                <div className="w-12 h-12 border-[4px] border-[#FF6600]/20 border-t-[#FF6600] rounded-full animate-spin shadow-[0_0_20px_rgba(255,102,0,0.3)] mb-4"></div>
+                <div className="text-[#FF6600] text-[11px] font-black uppercase tracking-[0.4em] animate-pulse">
+                  Accessing Archives...
+                </div>
+              </div>
+            )}
+
+            {/* THE ACTUAL GRID - We keep your map logic exactly the same inside here */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 px-4">
+              {currentSlots.map((slot: any) => (
+                slot.type === 'real' ? (
+                  /* REAL ITEM BOX */
+                  <VaultCard 
+                    key={slot.data.id}
+                    item={slot.data}
+                    index={vaultItems.indexOf(slot.data)}
+                    onClick={() => handleVaultPurchase(slot.data.id)}
+                    isProcessing={isVaultLoading === slot.data.id}
+                    unlockedTiers={unlockedVaultTiers[slot.data.id] || []}
+                  />
+                ) : (
+                  /* FAKE SKELETON BOX (Placeholders) */
+                  <div key={slot.id} className="animate-stalled pointer-events-none">
+                    <div className="aspect-[3/4] bg-gray-200/60 rounded-2xl overflow-hidden relative border border-gray-100/50">
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-gray-200/30" />
+                      <div className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-gray-300/50 border border-white/20" />
+                    </div>
+                    <div className="mt-3 px-1 space-y-2">
+                      <div className="h-3 w-3/4 bg-gray-200/80 rounded-full" />
+                      <div className="h-2 w-1/2 bg-gray-200/50 rounded-full" />
+                    </div>
+                  </div>
+                )
               ))}
             </div>
-
+          </div>
             {/* FINE SLIDER NAVIGATION */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-6 py-12 border-t border-gray-200/50">
+                <div className="flex items-center justify-center gap-6 py-12 border-t border-gray-200/50 mt-12">
                   
                   {/* PREVIOUS BUTTON */}
                   <button 
@@ -440,9 +452,6 @@ export default function Home() {
                   
                 </div>
               )}
-
-
-          </div>
 
         </div>
       </div>

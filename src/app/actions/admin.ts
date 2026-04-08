@@ -84,6 +84,10 @@ export async function getAdminVaultStats() {
 /**
  * [2] UPLOAD_MEDIA: THE_FACTORY (HARDENED & PARALLEL)
  */
+/**
+ * [GOD_MODE_PATCH]: Hardened Media Factory
+ * This version strips hashtags from IDs before they reach the DB or R2.
+ */
 export async function uploadVaultMedia(formData: FormData): Promise<AdminUploadResponse> {
   try {
     const isAuthorized = await checkAdminBypass();
@@ -101,15 +105,17 @@ export async function uploadVaultMedia(formData: FormData): Promise<AdminUploadR
 
     // Map files into upload promises for PARALLEL processing
     const uploadPromises = files.map(async (file, i) => {
-      const currentVaultId = (slugs[i] || globalVaultId).toLowerCase().trim();
+      // [FIX 1]: Strip hashtags and spaces immediately. 
+      // This ensures syexclusives.com/vault/nh6c works without %23%23 encoding.
+      const rawVaultId = (slugs[i] || globalVaultId).toLowerCase().trim();
+      const sanitizedId = rawVaultId.replace(/#/g, '').replace(/\s/g, '_');
+      
       const isVideo = file.type.startsWith('video/');
       const displayOrder = i === 0 ? 0 : 1; // Index 0 is always the Cover
 
-      // [GOD_MODE_PATCH] Strip hashtags from the folder path so it doesn't break the URL
-      const sanitizedVaultFolder = currentVaultId.replace(/#/g, '').replace(/\s/g, '_');
-      const fileName = `${sanitizedVaultFolder}/${Date.now()}-${file.name.replace(/\s/g, '_')}`;
+      // [FIX 2]: Use the clean sanitizedId for the Cloudflare R2 path
+      const fileName = `${sanitizedId}/${Date.now()}-${file.name.replace(/\s/g, '_')}`;
       
-      // [PATCH 3] Upload to Cloudflare R2 instead of Supabase Storage
       const fileBuffer = Buffer.from(await file.arrayBuffer());
       await r2.send(new PutObjectCommand({
         Bucket: process.env.R2_BUCKET_NAME,
@@ -118,16 +124,23 @@ export async function uploadVaultMedia(formData: FormData): Promise<AdminUploadR
         ContentType: file.type,
       }));
 
-      // Generate the public URL (We use the endpoint for now, will update to custom domain later)
+      // Generate the public URL using your branded domain
       const publicUrl = `${process.env.R2_PUBLIC_DOMAIN}/${fileName}`;
-      // 3. Insert metadata with Auto-Pilot logic
+
+      // [FIX 3]: Professional Price Logic
+      // Uses your custom price if provided, otherwise defaults to 2.00 for videos.
+      const rawPrice = prices[i];
+      const finalPrice = isVideo ? parseFloat(rawPrice && rawPrice !== "" ? rawPrice : "2.00") : 0;
+
+      // [FIX 4]: Insert metadata using the sanitized ID for the database
       const { error: dbError } = await supabase
         .from('vault_media')
         .insert({
-          vault_id: currentVaultId,
+          vault_id: sanitizedId, // No more ## stored in Supabase
           file_url: publicUrl,
           media_type: isVideo ? 'video' : 'image',
-          tier: isVideo ? 99 : (parseInt(tiers[i] || '1') || 1),          price: isVideo ? parseFloat(prices[i] || '2.00') : 0,
+          tier: isVideo ? 99 : (parseInt(tiers[i] || '1') || 1),  
+          price: finalPrice,
           start_time: isVideo ? parseInt(startTimes[i] || '0') : 0,
           display_order: displayOrder
         });
@@ -146,10 +159,9 @@ export async function uploadVaultMedia(formData: FormData): Promise<AdminUploadR
     };
   } catch (err: any) {
     console.error("UPLOAD_FAILURE:", err);
-    return { success: false, error: err.message || "INTERNAL_SYSTEM_FAILURE" };
+    return { success: false, error: err.message || "Failed" };
   }
 }
-
 /**
  * [3] GHOST_REGISTRY: USER_ACCESS
  */
@@ -473,7 +485,7 @@ export async function swapMediaFile(mediaId: string, oldFileUrl: string, newFile
     // [GOD_MODE_PATCH] Use Public CDN link for swapped files
     publicUrl = `${process.env.R2_PUBLIC_DOMAIN}/${fileName}`;
   } catch (err: any) {
-    return { success: false, error: err.message ||"SWAP_ERROR" };
+    return { success: false, error: err.message ||"SWAP ERROR" };
   }
 
   // 3. Update Database row with new URL

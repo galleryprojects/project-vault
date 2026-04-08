@@ -34,7 +34,7 @@ export default function AccountPage() {
       <div className="relative z-10 max-w-md mx-auto pt-24 px-6">
         
         <div className="mb-10 border-b border-gray-100 pb-6 text-center">
-          <h1 className="text-2xl font-black italic uppercase tracking-tighter text-primary">Fine Media Profile</h1>
+          <h1 className="text-2xl font-black italic uppercase tracking-tighter text-primary">Profile</h1>
         </div>
 
         {/* [USER ID CARD] - Updated to Premium Pink Style */}
@@ -80,7 +80,7 @@ export default function AccountPage() {
             onClick={() => logoutUser().then(() => window.location.href='/')}
             className="w-full bg-red-50 text-red-400 py-5 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-red-100 transition-all shadow-sm"
           >
-            Sign Out of Fine Media
+            Sign Out of Sy Exclusive
           </button>
         </div>
 

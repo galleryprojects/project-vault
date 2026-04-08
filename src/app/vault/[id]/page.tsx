@@ -174,13 +174,13 @@ export default function VaultInside() {
 
   // --- [3] HANDLERS ---
   const handleUnlockVideo = async (video: any) => {
-    const price = 2.00; // Price per video
-    const confirmed = window.confirm(`Reveal this selection for $${price.toFixed(2)}?`);
+    const videoPrice = video.price;
+    const confirmed = window.confirm(`Reveal this selection for $${videoPrice.toFixed(2)}?`);
     
     if (!confirmed) return;
 
     setIsProcessing(true);
-    const result = await unlockMediaAsset(video.id, price, `Video Unlock`);
+    const result = await unlockMediaAsset(video.id, videoPrice, `Video Unlock`);
     
     if (result.success) {
       setUnlockedAssetIds(prev => [...prev, video.id.toString()]);
@@ -228,18 +228,21 @@ export default function VaultInside() {
     );
   };
 
-  // UPDATED: Supports a custom filename and prevents the TS error
+ 
   const handleDownload = async (url: string, fileNameOrEvent?: string | React.MouseEvent) => {
-    // Stop the click from opening the lightbox or triggering other UI
+    // 1. STOP BUBBLING: Prevents the lightbox from opening when clicking the mini icon
     if (typeof fileNameOrEvent !== 'string' && fileNameOrEvent?.stopPropagation) {
       fileNameOrEvent.stopPropagation();
     }
 
     try {
-      // Direct fetch from R2/Cloudflare with CORS enabled
-      const response = await fetch(url, { 
+      // 2. SMART URL CLEANING: Removes ?token= or ?v= which crashes R2 fetch
+      const cleanUrl = url.split('?')[0];
+
+      const response = await fetch(cleanUrl, { 
         method: 'GET', 
-        mode: 'cors' 
+        mode: 'cors',
+        cache: 'no-cache'
       });
 
       if (!response.ok) throw new Error(`Download failed: ${response.status}`);
@@ -250,10 +253,10 @@ export default function VaultInside() {
       const link = document.createElement('a');
       link.href = blobUrl;
       
-      // Filename logic
+      // 3. CLEAN FILENAME: Prevents weird filenames like "image.jpg?v=123"
       const finalName = typeof fileNameOrEvent === 'string' 
         ? fileNameOrEvent 
-        : (url.split('/').pop()?.split('?')[0] || 'vault-asset');
+        : (cleanUrl.split('/').pop() || 'vault-asset');
         
       link.download = finalName;
       document.body.appendChild(link);
@@ -263,8 +266,8 @@ export default function VaultInside() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
     } catch (error: any) {
-      console.error("R2_DIRECT_DOWNLOAD_ERROR:", error.message);
-      // Fail-safe: Just open the file in a new tab if fetch is blocked
+      console.error("DOWNLOAD_CRASH:", error.message);
+      // Fail-safe fallback
       window.open(url, '_blank');
     }
   };
@@ -344,8 +347,8 @@ export default function VaultInside() {
                       }}
                     />
                     
-                    <div className={`absolute top-2 right-2 px-2 py-1 rounded-md text-[8px] font-black uppercase shadow-sm ${isOwned ? 'bg-green-500 text-white' : 'bg-primary text-white'}`}>
-                      {isOwned ? 'OWNED' : '$2.00'}
+                    <div className={`absolute top-2 right-2 px-2 py-1 rounded-md text-[9px] font-black uppercase shadow-sm ${isOwned ? 'bg-green-500 text-white' : 'bg-primary text-white'}`}>
+                      {isOwned ? 'OWNED' : `$${vid.price?.toFixed(2) || '2.00'}`}
                     </div>
 
                     {!isOwned && (
@@ -432,9 +435,9 @@ export default function VaultInside() {
                     className="flex justify-between items-end mb-6 border-b border-gray-100 pb-4 cursor-pointer hover:opacity-70 transition-opacity"
                   >
                     <div className="flex flex-col">
-                      <h2 className="text-[11px] font-black uppercase tracking-[0.4em] text-gray-400">Collection Level 0{tierNum}</h2>
-                      <span className={`text-[8px] font-black uppercase tracking-widest mt-1 ${isUnlocked ? 'text-green-500' : 'text-gray-300'}`}>
-                        {isUnlocked ? 'FULL_ACCESS' : '// LOCKED'}
+                      <h2 className="text-[11px] font-black uppercase tracking-[0.4em] text-gray-800">Unlock Collection {tierNum}</h2>
+                      <span className={`text-[8px] font-black uppercase tracking-widest mt-1 ${isUnlocked ? 'text-green-500' : 'text-red-500'}`}>
+                        {isUnlocked ? 'FULL_ACCESS' : 'LOCKED'}
                       </span>
                     </div>
                     <span className="text-[10px] font-black text-gray-300">

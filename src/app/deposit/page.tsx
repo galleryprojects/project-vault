@@ -12,11 +12,14 @@ export default function DepositPage() {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  
+  // [NEW]: State to hold the Gift Card minimum warning
+  const [giftCardError, setGiftCardError] = useState<string | null>(null);
 
   // Restricted to coins supported by our CryptoEngine
   const cryptoOptions = ['BTC', 'LTC'];
 
-   // --- NEW: Colored Icon Mapping for Crypto Buttons ---
+   // --- Colored Icon Mapping for Crypto Buttons ---
   const coinIcons: Record<string, React.ReactNode> = {
     BTC: (
       <svg className="w-6 h-6 mb-2" viewBox="0 0 24 24" fill="none" stroke="#F7931A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -61,8 +64,17 @@ export default function DepositPage() {
 
   async function handleGiftCardSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
     const formData = new FormData(e.currentTarget);
+    const amount = parseFloat(formData.get('amount') as string);
+
+    // [GOD_MODE_PATCH]: Minimum $10 Logic
+    if (amount < 10) {
+      setGiftCardError("BELOW MINIMUM IS 10");
+      return; // Hard stop. Does not contact server.
+    }
+
+    setGiftCardError(null); // Clear error if they pass
+    setLoading(true);
     formData.append('method', 'GIFTCARD');
     
     const result = await submitDeposit(formData);
@@ -87,18 +99,19 @@ export default function DepositPage() {
       {/* --- HEADER --- */}
       <div className="z-10 w-full max-w-2xl px-6 py-12 border-b border-gray-100 mb-10 flex justify-between items-end">
         <div>
-          <h1 className="text-2xl font-black italic tracking-tighter uppercase text-primary">FINE MEDIA</h1>
+          <h1 className="text-2xl font-black italic tracking-tighter uppercase text-primary">Sy Exclusive</h1>
           <div className="mt-4 space-y-1">
-            <p className="text-[10px] font-bold text-primary uppercase tracking-[0.2em]">
-              Min Gift Card: $10.00 
+            <p className="text-[12px] font-bold text-black uppercase tracking-[0.2em]">
+              Minimum Deposit Is: $10.00 
             </p>
-            <p className="text-[10px] font-bold text-primary uppercase tracking-[0.2em]">
-              Min Crypto: $6.00
+            <p className="text-[12px] font-bold text-black uppercase tracking-[0.2em]">
+              lesser value will not be processed!!!.
             </p>
+
           </div>
         </div>
         <div className="text-right">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Available Balance</p>
+          <p className="text-[12px] font-bold text-gray-400 uppercase tracking-widest">Available Balance</p>
           <p className="text-3xl font-black text-gray-900">${userProfile?.balance?.toFixed(2) || "0.00"}</p>
         </div>
       </div>
@@ -111,13 +124,12 @@ export default function DepositPage() {
             {activeCoin && depositAddress && (
               <div className="bg-primary/5 border-2 border-primary p-4 rounded-[24px] animate-in zoom-in duration-500 shadow-xl shadow-primary/10">
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xs font-black uppercase tracking-widest italic text-primary">
-                    Channel Access: {activeCoin}
+                  <h2 className="text-xs font-black uppercase tracking-widest italic text-red-900">
+                    Minimum Deposit For {activeCoin}: $6.00 USD
                   </h2>
                 </div>
                 
                 <div className="space-y-2">
-                  {/* UPDATE THIS BLOCK IN DepositPage.tsx */}
                   <div className="flex justify-center bg-white p-4 rounded-2xl border border-primary/20 mx-auto w-fit">
                     <QRCodeSVG 
                       value={activeCoin === 'BTC' ? `bitcoin:${depositAddress}` : `litecoin:${depositAddress}`} 
@@ -128,9 +140,9 @@ export default function DepositPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.3em]">Deposit Address:</p>
+                    <p className="text-[12px] font-bold text-black uppercase tracking-[0.3em]">Deposit Address:</p>
                     <div className="flex gap-2">
-                      <div className="flex-1 bg-white border border-primary/20 p-4 rounded-2xl text-[10px] font-bold text-primary break-all leading-tight">
+                      <div className="flex-1 bg-white border border-primary/20 p-4 rounded-2xl text-[10px] font-bold text-black break-all leading-tight">
                         {depositAddress}
                       </div>
                       <button 
@@ -177,7 +189,21 @@ export default function DepositPage() {
                   </div>
                   <div>
                     <label className="text-[8px] font-black uppercase text-gray-400 tracking-widest">Amount ($)</label>
-                    <input name="amount" type="number" step="0.01" placeholder="0.00" required className="w-full bg-transparent border-b border-gray-200 py-3 text-sm font-bold text-primary outline-none focus:border-primary transition-all" />
+                    <input 
+                      name="amount" 
+                      type="number" 
+                      step="0.01" 
+                      placeholder="0.00" 
+                      required 
+                      onChange={() => setGiftCardError(null)} // [NEW]: Clears the error when they start typing again
+                      className="w-full bg-transparent border-b border-gray-200 py-3 text-sm font-bold text-primary outline-none focus:border-primary transition-all" 
+                    />
+                    {/* [NEW]: The error warning text */}
+                    {giftCardError && (
+                      <p className="text-red-500 text-[9px] font-black mt-1 uppercase animate-pulse">
+                        {giftCardError}
+                      </p>
+                    )}
                   </div>
                   <div className="py-3 px-4 bg-primary/5 border border-primary/20 rounded-2xl">
                     <p className="text-[8px] font-bold text-primary uppercase tracking-widest leading-tight text-center">
