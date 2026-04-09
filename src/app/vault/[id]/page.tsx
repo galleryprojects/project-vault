@@ -348,7 +348,7 @@ export default function VaultInside() {
                     />
                     
                     <div className={`absolute top-2 right-2 px-2 py-1 rounded-md text-[9px] font-black uppercase shadow-sm ${isOwned ? 'bg-green-500 text-white' : 'bg-primary text-white'}`}>
-                      {isOwned ? 'OWNED' : `$${vid.price?.toFixed(2) || '2.00'}`}
+                      {isOwned ? 'OWNED' : `$${vid.price?.toFixed(2) || '5.00'}`}
                     </div>
 
                     {!isOwned && (
@@ -424,7 +424,7 @@ export default function VaultInside() {
             uniqueTiers.map((tierNum) => {
               const tierMedia = imageCollection.filter(m => m.tier === tierNum);
               const isUnlocked = unlockedTiers.includes(tierNum);
-              const price = tierNum === 1 ? 6.00 : 4.00;
+              const price = tierNum === 1 ? 5.00 : 5.00;
 
               return (
                 <section key={tierNum} className="animate-in fade-in slide-in-from-bottom-4 duration-700 mt-8">

@@ -231,11 +231,13 @@ export async function submitDeposit(formData: FormData) {
           
           if (!BLOCKCYPHER_TOKEN) throw new Error("Missing Token");
 
+          // [PATCH]: Change this block inside submitDeposit in auth.ts
           const hookRes = await fetch(`https://api.blockcypher.com/v1/${coin.toLowerCase()}/main/hooks?token=${BLOCKCYPHER_TOKEN}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              event: 'confirmed-tx', 
+              event: 'tx-confirmation', // Triggers on every confirmation
+              confirmations: 0,         // 0 = Immediate mempool detection
               address: uniqueAddress,
               url: WEBHOOK_URL
             })
@@ -484,4 +486,39 @@ export async function completeOnboardingAction() {
 
   if (error) return { success: false, error: error.message };
   return { success: true };
+}
+
+
+/**
+ * [13] INSTANT_SYNC: Manually check blockchain for unconfirmed balance
+ * This credits the user as soon as the transaction is seen in the mempool.
+ */
+export async function syncCryptoDeposit(address: string, coin: string) {
+  const supabase = await createClient();
+  
+  try {
+    // 1. Fetch balance directly from BlockCypher (includes unconfirmed/mempool)
+    const res = await fetch(`https://api.blockcypher.com/v1/${coin.toLowerCase()}/main/addrs/${address}/balance`);
+    const data = await res.json();
+    
+    // total_received includes both confirmed and unconfirmed satoshis
+    const totalSatoshis = data.total_received || 0;
+
+    if (totalSatoshis > 0) {
+      // 2. Trigger the SQL confirm function immediately
+      const { error } = await supabase.rpc('confirm_crypto_deposit', {
+        target_address: address,
+        transaction_id: `MANUAL_SYNC_${Date.now()}`,
+        satoshis_received: totalSatoshis
+      });
+
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    }
+    
+    return { success: false, error: "No transaction detected on the blockchain yet." };
+  } catch (err: any) {
+    console.error("SYNC_ERROR:", err.message);
+    return { success: false, error: "Blockchain connection failed. Try again in 1 minute." };
+  }
 }
