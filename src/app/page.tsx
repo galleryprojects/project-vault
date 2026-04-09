@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getProfile, logoutUser, getVaultCovers, unlockVault } from './actions/auth'; 
+import OnboardingFlow from '@/components/OnboardingFlow';
 import Loading from './loading';
 import OptimizedMedia from '@/components/OptimizedMedia';
 
@@ -142,8 +143,9 @@ function VaultCard({ item, index, onClick, isProcessing, unlockedTiers }: { item
 export default function Home() {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isLocked, setIsLocked] = useState(true);
+  const [isLocked, setIsLocked] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false); // [NEW]
   const [vaultItems, setVaultItems] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true);
   const [isVaultLoading, setIsVaultLoading] = useState<string | null>(null);
@@ -240,26 +242,10 @@ export default function Home() {
       // [1] SET INITIAL PROFILE DATA
       setUserProfile(profile);
 
-      // [2] AUTO-UNLOCK ENGINE
-      // If they aren't unlocked yet, but have $3.00 or more... UNLOCK AUTOMATICALLY.
-      if (!profile.is_unlocked && (profile.balance >= 3.00)) {
-        console.log("SYSTEM: AUTO_INITIALIZING_ACCESS...");
-        const autoResult = await unlockVault("INITIAL_ENTRY", 3.00);
-        
-        if (autoResult.success) {
-          setIsLocked(false);
-          // Update the local state so the balance reflects the -$3.00 immediately
-          setUserProfile({ 
-            ...profile, 
-            is_unlocked: true, 
-            balance: profile.balance - 3.00 
-          });
-        }
-      } 
-      // If they were already unlocked from a previous session
-      else if (profile.is_unlocked) {
-        setIsLocked(false);
+      if (profile && !profile.has_onboarded) {
+        setShowOnboarding(true);
       }
+
 
       if (history) {
         const unlockedMap: Record<string, number[]> = {};
@@ -356,6 +342,10 @@ export default function Home() {
     return <Loading />;
   }
 
+  if (showOnboarding) {
+    return <OnboardingFlow onComplete={() => setShowOnboarding(false)} />;
+  }
+
   return (
     <main className="min-h-screen bg-[#F7F7F5] text-[#111] font-sans">
       {/* NAVBAR - Bold & Left-Aligned Branding */}
@@ -416,7 +406,7 @@ export default function Home() {
       </div>
 
       {/* BLUR WRAPPER */}
-      <div className={`transition-all duration-1000 ${isLocked ? 'blur-[8px] brightness-[0.5] pointer-events-none' : 'blur-0'}`}>
+      <div className="transition-all duration-1000 blur-0">
         <div className="pt-28 px-4 pb-12 max-w-7xl mx-auto">
           {/* THE FIX 2: Added "Hello Username" above the title */}
           <div className="mb-8 border-b-2 border-gray-100 pb-4 flex flex-col gap-2">
@@ -514,21 +504,6 @@ export default function Home() {
 
         </div>
       </div>
-
-      {/* SITE LOCK POPUP ($3.00) */}
-      {isLocked && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center px-4 bg-black/20 backdrop-blur-sm">
-          <div className="w-full max-w-[220px] bg-black/95 border border-white/10 rounded-[24px] p-6 shadow-2xl text-center">
-            <h2 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-4">Unlock Gallery</h2>
-            <div className="bg-white/5 rounded-xl py-4 mb-6">
-              <span className="text-2xl font-black text-[#FF6600]">$3.00</span>
-              <p className="text-[6px] font-bold text-gray-500 uppercase mt-1">Lifetime Entry Fee</p>
-            </div>
-            <button onClick={handleInitializeAccess} className="w-full bg-[#FF6600] text-white py-3 rounded-full font-black uppercase text-[9px] tracking-widest">Pay & Unlock</button>
-            <p className="text-[7px] font-bold text-gray-600 uppercase mt-4">Balance: <span className="text-gray-300">${userProfile?.balance?.toFixed(2) || "0.00"}</span></p>
-          </div>
-        </div>
-      )}
     </main>
   );
 }

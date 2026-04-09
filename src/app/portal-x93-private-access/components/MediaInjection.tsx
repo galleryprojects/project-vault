@@ -7,9 +7,9 @@ import { uploadVaultMedia, getAdminVaultStats } from '../../actions/admin';
 // --- SUB-COMPONENT: PRECISION VIDEO CARD ---
 function VideoPrecisionCard({ fileObj, onUpdate, onRemove, isCover = false }: any) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [duration, setDuration] = useState(0);
   const [localStart, setLocalStart] = useState(fileObj.startTime || 0);
   const [localPrice, setLocalPrice] = useState(fileObj.price || "2.00");
+  const [duration, setDuration] = useState(fileObj.duration || 0);
 
   const formatDuration = (s: number) => {
     const mins = Math.floor(s / 60);
@@ -18,8 +18,8 @@ function VideoPrecisionCard({ fileObj, onUpdate, onRemove, isCover = false }: an
   };
 
   useEffect(() => {
-    onUpdate(fileObj.id, { startTime: localStart, price: localPrice });
-  }, [localStart, localPrice]);
+    onUpdate(fileObj.id, { startTime: localStart, price: localPrice, duration: duration });
+  }, [localStart, localPrice, duration]);
 
   return (
     <div className={`bg-[#0a0a0a] border border-[#3B82F6]/30 p-4 rounded-xl flex flex-col items-center gap-4 ${isCover ? 'w-64' : 'col-span-2 shadow-lg animate-in fade-in zoom-in-95'}`}>
@@ -56,12 +56,19 @@ function VideoPrecisionCard({ fileObj, onUpdate, onRemove, isCover = false }: an
         />
       </div>
 
-      <div className="w-full flex items-center bg-black border border-[#3B82F6]/30 px-2 py-1 mt-2 rounded">
-        <span className="text-[#3B82F6] font-black text-[10px] mr-1">$</span>
-        <input type="number" step="0.01" value={localPrice} onChange={(e) => setLocalPrice(e.target.value)}
-          className="bg-transparent text-white text-[10px] font-bold outline-none w-full" />
+      {/* [STRICT_WARNING_PATCH]: The border turns RED if localPrice is empty or 0 */}
+      <div className={`w-full flex items-center bg-black border ${(!localPrice || localPrice === "0.00" || localPrice === "") ? 'border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'border-[#3B82F6]/30'} px-2 py-1 mt-2 rounded transition-all`}>
+        <span className={`${(!localPrice || localPrice === "0.00" || localPrice === "") ? 'text-red-500' : 'text-[#3B82F6]'} font-black text-[10px] mr-1`}>$</span>
+        <input 
+          type="number" 
+          step="0.01" 
+          value={localPrice} 
+          placeholder="0.00"
+          onChange={(e) => setLocalPrice(e.target.value)}
+          className="bg-transparent text-white text-[10px] font-bold outline-none w-full" 
+        />
       </div>
-      
+
       <button type="button" onClick={() => onRemove(fileObj.id)} className="text-[8px] font-black text-red-500 hover:text-white uppercase mt-2 transition-colors">
         [ REMOVE ]
       </button>
@@ -137,7 +144,8 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
         preview: URL.createObjectURL(file),
         type: file.type.includes('video') ? 'video' : 'image', // Basic check for isVideo
         startTime: 0,
-        price: "2.00"
+        price: "",
+        duration: 0
       });
     }
   };
@@ -150,7 +158,8 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
         preview: URL.createObjectURL(file),
         type: file.type.includes('video') ? 'video' : 'image', 
         startTime: 0,                                         
-        price: "2.00" 
+        price: "",
+        duration: 0
       }));
       setActivePayload(prev => [...prev, ...newFiles]);
     }
@@ -248,17 +257,20 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
       formData.append('vaultId', entry.slug);
       formData.append('tier', entry.tier);
       
+
       formData.append('files', entry.cover.file);
       formData.append('slugs', entry.slug);
-      formData.append('prices', entry.cover.price || "2.00");
+      formData.append('prices', entry.cover.price);
       formData.append('startTimes', entry.cover.startTime?.toString() || "0");
+      formData.append('durations', entry.cover.duration?.toString() || "0"); // [GOD_MODE_PATCH 4]
       formData.append('tiers', entry.cover.type === 'video' ? "99" : "0");
       
       entry.payload.forEach((pf: any) => {
         formData.append('files', pf.file);
         formData.append('slugs', entry.slug);
-        formData.append('prices', pf.price || "2.00");
+        formData.append('prices', pf.price);
         formData.append('startTimes', pf.startTime?.toString() || "0");
+        formData.append('durations', pf.duration?.toString() || "0"); // [GOD_MODE_PATCH 5]
         formData.append('tiers', pf.type === 'video' ? "99" : entry.tier); 
       });
 
@@ -270,7 +282,7 @@ export default function MediaInjection({ setVaultStats, setActiveTab }: any) {
       }
     }
     
-    alert(`[ SYSTEM ] SEQUENCE_COMPLETE: All protocols synchronized.`);
+    alert(`All Completed.`);
     
     // Clean up and reset for the next batch
     setVaultStack([]);

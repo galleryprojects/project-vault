@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   balance NUMERIC DEFAULT 0,
   user_id_display TEXT,
   is_unlocked BOOLEAN DEFAULT FALSE,
+  has_onboarded BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

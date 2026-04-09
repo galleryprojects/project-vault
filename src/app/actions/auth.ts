@@ -80,7 +80,7 @@ export async function getProfile() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('*')
+    .select('*, has_onboarded')
     .eq('id', user.id)
     .single();
 
@@ -468,4 +468,20 @@ export async function getUnlockedAssets() {
     .eq('item_type', 'SINGLE_MEDIA');
 
   return data?.map(row => row.media_url) || [];
+}
+
+
+export async function completeOnboardingAction() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) return { success: false };
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ has_onboarded: true })
+    .eq('id', user.id);
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
 }
