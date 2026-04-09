@@ -6,9 +6,17 @@ import { getProfile, logoutUser, getVaultCovers, unlockVault } from './actions/a
 import Loading from './loading';
 import OptimizedMedia from '@/components/OptimizedMedia';
 
+// [1] SUB-COMPONENT: VaultCard (With Diagonal Mirror Watermark)
 function VaultCard({ item, index, onClick, isProcessing, unlockedTiers }: { item: any, index: number, onClick: () => void, isProcessing: boolean, unlockedTiers: number[] }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const isUnlocked = unlockedTiers.length > 0;
+
+  // Helper to format duration (e.g., 150 seconds -> 2MINS+)
+  const formatDuration = (seconds: number) => {
+    if (!seconds) return "VIDEO CONTENT";
+    const mins = Math.floor(seconds / 60);
+    return `${mins}MINS+`;
+  };
 
   const isVideo = (url: string) => url?.match(/\.(mp4|webm|ogg|mov)$/i);
 
@@ -24,6 +32,7 @@ function VaultCard({ item, index, onClick, isProcessing, unlockedTiers }: { item
   return (
     <div onClick={onClick} className="group cursor-pointer bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm flex flex-col transition-all hover:shadow-md hover:-translate-y-1">
       <div className="relative aspect-square w-full bg-black overflow-hidden">
+        
         {/* Global Processing Overlay (For Unlocks) */}
         {isProcessing && (
           <div className="absolute inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-center justify-center animate-in fade-in duration-200">
@@ -33,44 +42,90 @@ function VaultCard({ item, index, onClick, isProcessing, unlockedTiers }: { item
 
         <div className="flex h-full transition-transform duration-500 ease-out z-10" style={{ transform: `translateX(-${currentIndex * 100}%)` }}>
           {item.images.map((imgObj: any, idx: number) => {
-            const isImageVisible = idx === 0 || unlockedTiers.includes(imgObj.tier);
+            // 1. VISIBILITY LOGIC:
+            const isImageVisible = imgObj.display_order === 0 || unlockedTiers.includes(imgObj.tier);
+            
+            // 2. WATERMARK LOGIC:
+            const showWatermark = !unlockedTiers.includes(imgObj.tier) && imgObj.display_order === 0;
+
+            // Show padlock on EVERYTHING that is locked.
+            const isLocked = !unlockedTiers.includes(imgObj.tier);
+
             const isPriority = index < 15 && idx === 0;
+            
             return (
               <div key={idx} className="min-w-full h-full flex items-center justify-center relative bg-black">
-                {isImageVisible ? (
-                  <OptimizedMedia src={imgObj.file_url} type={isVideo(imgObj.file_url) ? 'video' : 'image'} className="opacity-100 blur-0 group-hover:scale-105 transition-all duration-700" priority={isPriority} />
-                ) : (
-                  <OptimizedMedia src="https://ltxdyydmerdqfvsvomwx.supabase.co/storage/v1/object/public/vault-assets/fake/fake.jpg" type="image" className="blur-lg opacity-50 scale-105 pointer-events-none" priority={isPriority} />
+                
+                {/* LAYER 1: THE MEDIA */}
+                <OptimizedMedia 
+                  src={imgObj.file_url} 
+                  type={isVideo(imgObj.file_url) ? 'video' : 'image'} 
+                  className={`w-full h-full object-cover transition-all duration-700 ${
+                    isImageVisible 
+                      ? "opacity-100 blur-0 group-hover:scale-105" 
+                      : "blur-[18px] opacity-40 scale-110 pointer-events-none"
+                  }`} 
+                  priority={isPriority} 
+                />
+                
+                {/* LAYER 2: THE DYNAMIC WATERMARK (Cover Only) */}
+                {showWatermark && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20 mix-blend-overlay overflow-hidden">
+                    <div className="rotate-45 scale-[1.5] w-[200%] text-center">
+                      <span className="text-white font-black text-[12px] sm:text-[16px] uppercase tracking-[1em] whitespace-nowrap drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
+                        SY EXCLUSIVE • SY EXCLUSIVE • SY EXCLUSIVE • SY EXCLUSIVE
+                      </span>
+                    </div>
+                  </div>
                 )}
-                {!unlockedTiers.includes(imgObj.tier) && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="bg-black/30 backdrop-blur-xl p-4 rounded-full border border-white/10 shadow-2xl">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+
+                {/* LAYER 3: THE CENTER PADLOCK (Everything Locked) */}
+                {isLocked && (
+                  <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+                    <div className="bg-black/20 backdrop-blur-2xl p-4 rounded-full border border-white/20 shadow-2xl">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                      </svg>
                     </div>
                   </div>
                 )}
               </div>
             );
           })}
+
+          
         </div>
 
-        {item.images.length > 1 && (
-          <div className="absolute inset-0 flex items-center justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity z-30">
-            <button onClick={(e) => handleNav('prev', e)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-[12px] shadow-lg hover:bg-primary hover:text-white transition-all text-black font-black">←</button>
-            <button onClick={(e) => handleNav('next', e)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-[12px] shadow-lg hover:bg-primary hover:text-white transition-all text-black font-black">→</button>
+        {/* [THE FIX]: VIDEO DURATION TEXT (Under the Circles) */}
+        {isVideo(item.images[currentIndex]?.file_url) && (
+          <div className="absolute bottom-1 left-0 w-full flex justify-center z-40 pointer-events-none">
+            <p className="text-[7px] font-black text-white/40 uppercase tracking-[0.3em] animate-in fade-in slide-in-from-bottom-1">
+              {formatDuration(item.images[currentIndex]?.duration)}
+            </p>
           </div>
         )}
 
+        {/* ... SLIDER CONTROLS (Keep exact same as before) ... */}
         {item.images.length > 1 && (
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-[2px] z-30 w-[90%] justify-center flex-wrap">
+          <div className="absolute inset-0 flex items-center justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity z-40 pointer-events-none">
+            <button onClick={(e) => handleNav('prev', e)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-[12px] shadow-lg hover:bg-primary hover:text-white transition-all text-black font-black pointer-events-auto">←</button>
+            <button onClick={(e) => handleNav('next', e)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-[12px] shadow-lg hover:bg-primary hover:text-white transition-all text-black font-black pointer-events-auto">→</button>
+          </div>
+        )}
+
+        {/* ... PROGRESS DOTS (Keep exact same as before) ... */}
+        {item.images.length > 1 && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-[2px] z-40 w-[90%] justify-center flex-wrap pointer-events-none">
             {item.images.map((_: any, idx: number) => (
               <div key={idx} className={`h-1 rounded-full transition-all duration-300 ${idx === currentIndex ? 'w-3 bg-primary' : 'w-1 bg-white/50'}`}></div>
             ))}
           </div>
         )}
-        <div className="absolute inset-0 border-[3px] border-primary opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20"></div>
+        <div className="absolute inset-0 border-[3px] border-primary opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50"></div>
       </div>
       
+      {/* ... CARD FOOTER (Keep exact same as before) ... */}
       <div className="p-4 bg-white relative z-10">
         <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-tight truncate mb-2">{item.title}</h3>
         <div className="flex justify-between items-center">
@@ -229,9 +284,16 @@ export default function Home() {
       // 2. Map and Sort the Covers
       if (covers) {
         const mappedItems = covers.map((c: any) => {
-          let mediaArray = c.media || [];
+          // [FIX]: Sort by Tier (1, 2, 3) then by Order (0, 1, 2) 
+          // This ensures Tier 1, Display Order 0 is ALWAYS the first image (Index 0)
+          let mediaArray = (c.media || []).sort((a: any, b: any) => {
+            if (a.tier !== b.tier) return a.tier - b.tier;
+            return a.display_order - b.display_order;
+          });
+
           const currentCount = mediaArray.length;
           
+          // Add fake placeholders only AFTER sorting the real ones
           if (currentCount > 0 && currentCount < 30) {
             const fakesNeeded = 30 - currentCount;
             const fakeMedia = Array.from({ length: fakesNeeded }).map((_, index) => ({
@@ -250,10 +312,7 @@ export default function Home() {
           };
         });
 
-        // THE PRIORITY SORT ENGINE:
-        // We look at the 'currentUnlockedMap' we just built.
-        // If they own it, it gets a score of 1. If locked, score of 0.
-        // Sorts descending so all 1s (Owned) jump to the very beginning.
+        // THE PRIORITY SORT ENGINE (Keep this exactly as you have it)
         const sortedItems = mappedItems.sort((a, b) => {
           const aOwned = currentUnlockedMap[a.id] ? 1 : 0;
           const bOwned = currentUnlockedMap[b.id] ? 1 : 0;

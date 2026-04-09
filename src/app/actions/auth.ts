@@ -318,7 +318,7 @@ export async function getLedger() {
       id: item.id, 
       displayId: item.code || 'INTAKE',
       type: 'DEPOSIT',
-      title: `${item.platform || 'SYSTEM'} PROTOCOL`,
+      title: `${item.platform || 'SYSTEM'} PAYMENT`,
       amount: item.amount || 0,
       status: item.status,
       date: new Date(item.created_at).toLocaleDateString(),
