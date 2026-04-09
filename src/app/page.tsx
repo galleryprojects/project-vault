@@ -147,6 +147,18 @@ export default function Home() {
   const [vaultItems, setVaultItems] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true);
   const [isVaultLoading, setIsVaultLoading] = useState<string | null>(null);
+  const [isAtBottom, setIsAtBottom] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      // Detects if user is within 50px of the bottom
+      const bottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 50;
+      setIsAtBottom(bottom);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // --- NEW: Home Page Pagination State ---
   const [currentPage, setCurrentPage] = useState(1);
@@ -335,7 +347,7 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F7F7F5] text-[#111] font-sans">
+    <main className="min-h-screen bg-[#F7F7F5] text-[#111] font-sans pb-24">
       {/* NAVBAR - Bold & Left-Aligned Branding */}
       <nav className="fixed top-0 left-0 w-full h-[64px] bg-white border-b border-gray-200 z-[100] flex items-center px-4">
         <div className="w-full max-w-7xl mx-auto flex items-center justify-between">
@@ -492,6 +504,48 @@ export default function Home() {
 
         </div>
       </div>
+
+      {/* --- DYNAMIC EXPANDING FOOTER --- */}
+      <footer className={`fixed bottom-0 left-0 w-full z-[150] border-t border-gray-200/60 bg-white/95 backdrop-blur-xl transition-all duration-500 ease-in-out shadow-[0_-5px_20px_rgba(0,0,0,0.05)] ${
+        isAtBottom ? 'h-[160px] py-8' : 'h-[60px] py-2'
+      }`}>
+        <div className="max-w-7xl mx-auto flex flex-col items-center text-center px-4">
+          
+          {/* 1. RATING STARS - Grow slightly when expanded */}
+          <div className={`flex gap-1 transition-all duration-500 ${isAtBottom ? 'mb-4 scale-125' : 'mb-1 scale-100'}`}>
+            {[...Array(5)].map((_, i) => (
+              <svg key={i} xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="#FFD700" stroke="#FFD700" strokeWidth="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+            ))}
+          </div>
+
+          {/* 2. MAIN CONTENT - Switches from horizontal to vertical stack */}
+          <div className={`flex transition-all duration-500 ${isAtBottom ? 'flex-col gap-2' : 'flex-row items-center gap-3'}`}>
+            <p className={`font-black uppercase italic tracking-tighter text-gray-900 transition-all ${
+              isAtBottom ? 'text-[16px]' : 'text-[10px]'
+            }`}>
+              Trusted by 20,000 Persons Since 2025
+            </p>
+            
+            {!isAtBottom && <span className="text-gray-300 text-[8px]">|</span>}
+            
+            <p className={`font-bold uppercase tracking-widest text-gray-500 transition-all ${
+              isAtBottom ? 'text-[11px] mt-2' : 'text-[9px]'
+            }`}>
+              © 2026 SY EXCLUSIVES • ALL RIGHTS RESERVED
+            </p>
+          </div>
+
+          {/* 3. HIDDEN TAGLINE - Only shows when fully open */}
+          <div className={`overflow-hidden transition-all duration-700 ${isAtBottom ? 'max-h-10 opacity-100 mt-6' : 'max-h-0 opacity-0'}`}>
+             <p className="text-[8px] font-black text-gray-300 uppercase tracking-[0.5em]">
+                Premium Archive Access
+             </p>
+          </div>
+
+        </div>
+      </footer>
     </main>
   );
 }

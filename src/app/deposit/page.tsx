@@ -191,15 +191,23 @@ export default function DepositPage() {
                     )}
                   </button>
 
-                  <div className="flex justify-between items-center pt-4 border-t border-primary/10">
-                    <p className="text-[8px] font-bold text-gray-500 uppercase tracking-tighter italic">Instant detection usually takes 1-2 mins</p>
+                  <div className="flex justify-between items-end pt-4 border-t border-primary/10">
+                    <div className="flex flex-col gap-1">
+                      <p className="text-[9px] font-black text-red-900 uppercase tracking-tighter italic">
+                        Blockchain detection usually takes 5-10 mins
+                      </p>
+                      <p className="text-[9px] font-black text-red-900 uppercase tracking-tighter italic">
+                        If it takes longer,hit detect button 👆 above
+                      </p>
+                    </div>
                     <button 
                       onClick={() => { setActiveCoin(null); setDepositAddress(null); }}
-                      className="text-[9px] font-black text-primary uppercase tracking-widest border-b border-primary/30 pb-0.5"
+                      className="text-[9px] font-black text-primary uppercase tracking-widest border-b border-primary/30 pb-0.5 whitespace-nowrap ml-2"
                     >
                       Change Method
                     </button>
                   </div>
+                  
                 </div>
               </div>
             )}
@@ -256,7 +264,9 @@ export default function DepositPage() {
                     ))}
                   </div>
                 ) : (
+
                   <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Instant Blockchain Confirmation</p>
+
                 )}
               </div>
             )}
