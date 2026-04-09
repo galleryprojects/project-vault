@@ -43,11 +43,9 @@ function VaultCard({ item, index, onClick, isProcessing, unlockedTiers }: { item
 
         <div className="flex h-full transition-transform duration-500 ease-out z-10" style={{ transform: `translateX(-${currentIndex * 100}%)` }}>
           {item.images.map((imgObj: any, idx: number) => {
-            // 1. VISIBILITY LOGIC:
-            const isImageVisible = imgObj.display_order === 0 || unlockedTiers.includes(imgObj.tier);
-            
-            // 2. WATERMARK LOGIC:
-            const showWatermark = !unlockedTiers.includes(imgObj.tier) && imgObj.display_order === 0;
+
+            const isImageVisible = idx === 0 || imgObj.display_order === 0 || unlockedTiers.includes(imgObj.tier);
+            const showWatermark = !unlockedTiers.includes(imgObj.tier) && (idx === 0 || imgObj.display_order === 0);
 
             // Show padlock on EVERYTHING that is locked.
             const isLocked = !unlockedTiers.includes(imgObj.tier);
@@ -71,7 +69,7 @@ function VaultCard({ item, index, onClick, isProcessing, unlockedTiers }: { item
                 
                 {/* LAYER 2: THE DYNAMIC WATERMARK (Cover Only) */}
                 {showWatermark && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20 mix-blend-overlay overflow-hidden">
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20 mix-blend-normal overflow-hidden">
                     <div className="rotate-45 scale-[1.5] w-[200%] text-center">
                       <span className="text-white font-black text-[12px] sm:text-[16px] uppercase tracking-[1em] whitespace-nowrap drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
                         SY EXCLUSIVE • SY EXCLUSIVE • SY EXCLUSIVE • SY EXCLUSIVE
@@ -196,7 +194,7 @@ export default function Home() {
     }
 
     // [SECURITY FIX] Ask for confirmation before charging $2.00
-    const confirmPurchase = window.confirm(`Do You Want To Unlock ${vaultId.replace(/-/g, ' ').toUpperCase()} for $2.00?`);
+    const confirmPurchase = window.confirm(`Do You Want To Unlock ${vaultId.replace(/-/g, ' ').toUpperCase()} for $5.00?`);
     
     // If they click "Cancel", stop the function immediately
     if (!confirmPurchase) {
@@ -204,7 +202,7 @@ export default function Home() {
     }
 
     setIsVaultLoading(vaultId);
-    const result = await unlockVault(vaultId, 2.00, 1);
+    const result = await unlockVault(vaultId, 5.00, 1);
 
     if (result.success) {
       // Add Tier 1 to their owned list immediately
@@ -293,7 +291,7 @@ export default function Home() {
           return {
             id: c.vault_id,
             title: c.vault_id.replace(/-/g, ' '),
-            price: "2.00", 
+            price: "5.00", 
             images: mediaArray 
           };
         });
@@ -364,7 +362,7 @@ export default function Home() {
             </button>
             
             <h1 className="text-[12px] sm:text-[16px] font-black tracking-[0.4em] uppercase italic whitespace-nowrap leading-none">
-              Sy Exclusives
+              Sy Exclusives SY EXCLUSIVE SY EXCLUSIVE
             </h1>
           </div>
 
