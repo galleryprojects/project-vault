@@ -170,33 +170,35 @@ export async function submitDeposit(formData: FormData) {
   const amount = rawAmount ? parseFloat(rawAmount as string) : null; 
 
   try {
+    
     if (method === 'CRYPTO') {
       const coin = formData.get('platform') as 'BTC' | 'LTC';
 
-      // 1. Smart Resume: FIXED (No longer crashes on multiple pending rows)
-      const { data: existingPending } = await supabase
+      // 1. STATIC WALLET LOGIC: Get the user's permanent address
+      // We no longer check for 'status: PENDING'. We just get the very first address they ever generated.
+      const { data: existingWallet } = await supabase
         .from('deposits')
         .select('address, derivation_index')
         .eq('user_id', user.id)
         .eq('platform', coin)
-        .eq('status', 'PENDING')
-        .order('created_at', { ascending: false })
-        .limit(1); // Forces it to only look at the most recent one safely
+        .order('created_at', { ascending: true }) // Grabs the oldest one (their permanent wallet)
+        .limit(1);
 
-      if (existingPending && existingPending.length > 0 && existingPending[0].address) {
+      // If they EVER generated an address, return it forever. Do not create a new one.
+      if (existingWallet && existingWallet.length > 0 && existingWallet[0].address) {
         return { 
           success: true, 
-          address: existingPending[0].address,
-          index: existingPending[0].derivation_index 
+          address: existingWallet[0].address, 
+          index: existingWallet[0].derivation_index 
         };
       }
 
-      // 2. Generate New Address
+      // 2. Generate New Address ONLY IF THIS IS THEIR FIRST TIME EVER
       const adminSupabase = createAdminClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY! 
+        process.env.NEXT_PUBLIC_SUPABASE_URL!, 
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
       );
-
+      
       const { data: lastDeposit } = await adminSupabase
         .from('deposits')
         .select('derivation_index')
@@ -204,51 +206,43 @@ export async function submitDeposit(formData: FormData) {
         .order('derivation_index', { ascending: false })
         .limit(1)
         .maybeSingle();
-
+      
       const nextIndex = (lastDeposit?.derivation_index ?? -1) + 1;
       const uniqueAddress = generateCryptoAddress(coin, nextIndex);
 
-
-      // 3. IMPORTANT: Save to Database FIRST
-      // This ensures the row exists so the Webhook doesn't error out if it's fast.
+      // 3. Save Permanent Address Assignment to Database
       const { error: dbError } = await supabase
         .from('deposits')
         .insert([{
-          user_id: user.id,
-          type: 'CRYPTO',
-          platform: coin,
-          amount: amount, 
-          status: 'PENDING',
-          address:uniqueAddress,
+          user_id: user.id, 
+          type: 'CRYPTO', 
+          platform: coin, 
+          amount: 0, 
+          status: 'ASSIGNED', // Using 'ASSIGNED' instead of 'PENDING' to mark it as their forever wallet
+          address: uniqueAddress, 
           derivation_index: nextIndex
         }]);
-
+        
       if (dbError) throw dbError;
 
-      // 4. NOW: Register with BlockCypher
-        try {
-          const BLOCKCYPHER_TOKEN = process.env.BLOCKCYPHER_TOKEN;
-          const WEBHOOK_URL = 'https://ltxdyydmerdqfvsvomwx.supabase.co/functions/v1/crypto-webhook';
-          
-          if (!BLOCKCYPHER_TOKEN) throw new Error("Missing Token");
-
-          // [PATCH]: Change this block inside submitDeposit in auth.ts
-          const hookRes = await fetch(`https://api.blockcypher.com/v1/${coin.toLowerCase()}/main/hooks?token=${BLOCKCYPHER_TOKEN}`, {
-            method: 'POST',
+      // 4. Register Webhook for the new permanent address
+      try {
+        const BLOCKCYPHER_TOKEN = process.env.BLOCKCYPHER_TOKEN;
+        if (BLOCKCYPHER_TOKEN) {
+          await fetch(`https://api.blockcypher.com/v1/${coin.toLowerCase()}/main/hooks?token=${BLOCKCYPHER_TOKEN}`, {
+            method: 'POST', 
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              event: 'tx-confirmation', // Triggers on every confirmation
-              confirmations: 0,         // 0 = Immediate mempool detection
-              address: uniqueAddress,
-              url: WEBHOOK_URL
+            body: JSON.stringify({ 
+              event: 'tx-confirmation', 
+              confirmations: 0, 
+              address: uniqueAddress, 
+              url: 'https://ltxdyydmerdqfvsvomwx.supabase.co/functions/v1/crypto-webhook' 
             })
           });
-
-          const hookData = await hookRes.json();
-          console.log("BLOCKCYPHER_HOOK_ID:", hookData.id);
-        } catch (webhookErr: any) {
-          console.error("WEBHOOK_REGISTRATION_FAILED:", webhookErr.message);
         }
+      } catch (e) {
+        console.error("WEBHOOK_REGISTRATION_FAILED");
+      }
 
       return { success: true, address: uniqueAddress, index: nextIndex };
     }
@@ -496,30 +490,42 @@ export async function completeOnboardingAction() {
  */
 export async function syncCryptoDeposit(address: string, coin: string) {
   const supabase = await createClient();
-  
   try {
-    // 1. Fetch balance directly from BlockCypher (includes unconfirmed/mempool)
-    const res = await fetch(`https://api.blockcypher.com/v1/${coin.toLowerCase()}/main/addrs/${address}/balance`);
+    // 1. Fetch blockchain transactions
+    const res = await fetch(`https://api.blockcypher.com/v1/${coin.toLowerCase()}/main/addrs/${address}`);
     const data = await res.json();
     
-    // total_received includes both confirmed and unconfirmed satoshis
-    const totalSatoshis = data.total_received || 0;
+    const allTxs = [...(data.unconfirmed_txrefs || []), ...(data.txrefs || [])];
+    if (allTxs.length === 0) return { success: false, error: "No transactions detected yet." };
 
-    if (totalSatoshis > 0) {
-      // 2. Trigger the SQL confirm function immediately
+    // 2. FETCH LIVE PRICE FROM BINANCE API (STRICT MODE - NO FALLBACK)
+    const priceRes = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${coin}USDT`);
+    if (!priceRes.ok) throw new Error("LIVE_PRICE_API_FAILED"); 
+    const priceData = await priceRes.json();
+    const livePrice = parseFloat(priceData.price);
+
+    let totalCredited = 0;
+
+    // 3. Process each transaction with the exact Live Price
+    for (const tx of allTxs) {
+      if (tx.tx_output_n === -1) continue; // Skip outgoing transfers
+      
+      const exactUsdValue = (tx.value / 100000000.0) * livePrice;
+
       const { error } = await supabase.rpc('confirm_crypto_deposit', {
         target_address: address,
-        transaction_id: `MANUAL_SYNC_${Date.now()}`,
-        satoshis_received: totalSatoshis
+        transaction_id: tx.tx_hash,
+        calculated_usd: exactUsdValue 
       });
 
-      if (error) return { success: false, error: error.message };
-      return { success: true };
+      if (!error) totalCredited += exactUsdValue;
     }
-    
-    return { success: false, error: "No transaction detected on the blockchain yet." };
-  } catch (err: any) {
-    console.error("SYNC_ERROR:", err.message);
-    return { success: false, error: "Blockchain connection failed. Try again in 1 minute." };
+
+    if (totalCredited > 0) return { success: true };
+    return { success: false, error: "All visible transactions have already been credited." };
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : "Unknown error";
+    console.error("SYNC_ERROR:", errMsg);
+    return { success: false, error: "Check failed. Ensure network is stable." };
   }
 }
