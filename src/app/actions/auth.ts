@@ -173,20 +173,21 @@ export async function submitDeposit(formData: FormData) {
     if (method === 'CRYPTO') {
       const coin = formData.get('platform') as 'BTC' | 'LTC';
 
-      // 1. Smart Resume: Return existing address if one is already pending
+      // 1. Smart Resume: FIXED (No longer crashes on multiple pending rows)
       const { data: existingPending } = await supabase
         .from('deposits')
         .select('address, derivation_index')
         .eq('user_id', user.id)
         .eq('platform', coin)
         .eq('status', 'PENDING')
-        .maybeSingle();
+        .order('created_at', { ascending: false })
+        .limit(1); // Forces it to only look at the most recent one safely
 
-      if (existingPending && existingPending.address) {
+      if (existingPending && existingPending.length > 0 && existingPending[0].address) {
         return { 
           success: true, 
-          address: existingPending.address,
-          index: existingPending.derivation_index 
+          address: existingPending[0].address,
+          index: existingPending[0].derivation_index 
         };
       }
 
