@@ -219,7 +219,7 @@ export default function DepositPage() {
                   </button>
                 </form>
               ) : (
-                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Secure Membership</p>
+                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Seamless Funding</p>
               )}
             </div>
 
@@ -251,7 +251,7 @@ export default function DepositPage() {
 
                   </div>
                 ) : (
-                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Instant Blockchain Transfer</p>
+                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Instant Blockchain Confirmation</p>
                 )}
               </div>
             )}

@@ -173,16 +173,6 @@ export default function Home() {
   // TRACK WHICH TIERS ARE OWNED: e.g., { 'mary': [1, 2], 'test': [1] }
   const [unlockedVaultTiers, setUnlockedVaultTiers] = useState<Record<string, number[]>>({});
 
-  const handleInitializeAccess = async () => {
-    const result = await unlockVault("INITIAL_ENTRY", 3.00);
-    if (result.success) {
-      setIsLocked(false);
-      const updated = await getProfile();
-      if (updated) setUserProfile(updated);
-    } else {
-      router.push('/deposit');
-    }
-  };
 
   const handleVaultPurchase = async (vaultId: string) => {
     const ownedTiers = unlockedVaultTiers[vaultId] || [];
@@ -361,8 +351,8 @@ export default function Home() {
               <div className="w-6 h-[2.5px] bg-black"></div>
             </button>
             
-            <h1 className="text-[12px] sm:text-[16px] font-black tracking-[0.4em] uppercase italic whitespace-nowrap leading-none">
-              Sy Exclusives SY EXCLUSIVE SY EXCLUSIVE
+            <h1 className="text-[12px] sm:text-[16px] text-primary font-black tracking-[0.4em] uppercase italic whitespace-nowrap leading-none">
+              Sy Exclusives
             </h1>
           </div>
 
