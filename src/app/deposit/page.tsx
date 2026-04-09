@@ -52,7 +52,7 @@ export default function DepositPage() {
     setIsSyncing(true);
     const result = await syncCryptoDeposit(depositAddress, activeCoin);
     if (result.success) {
-      alert("CREDITS_INJECTED: Success! Returning home.");
+      alert("Wallet Credited: Success! Returning home.");
       router.push('/');
     } else {
       alert(result.error || "No transaction detected yet.");
