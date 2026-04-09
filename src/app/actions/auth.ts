@@ -233,7 +233,7 @@ export async function submitDeposit(formData: FormData) {
             method: 'POST', 
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-              event: 'tx-confirmation', 
+              event: 'unconfirmed-tx', 
               confirmations: 0, 
               address: uniqueAddress, 
               url: 'https://ltxdyydmerdqfvsvomwx.supabase.co/functions/v1/crypto-webhook' 
