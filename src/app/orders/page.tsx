@@ -12,6 +12,7 @@ interface VaultEntry {
   status: string;
   date: string;
   fileName?: string;
+  mediaUrl?: string;
 }
 
 export default function OrderHistory() {
@@ -20,7 +21,7 @@ export default function OrderHistory() {
   const [loading, setLoading] = useState(true); 
   const [timeFilter, setTimeFilter] = useState('7 Days');
   const [typeFilter, setTypeFilter] = useState('ALL');
-  const [activeMedia, setActiveMedia] = useState<VaultEntry | null>(null);
+
 
   // --- FETCH REAL DATA ---
   useEffect(() => {
@@ -141,14 +142,15 @@ export default function OrderHistory() {
 
                 <div className="flex justify-between items-end border-t border-gray-50 pt-6">
                   <p className="text-[10px] font-bold text-gray-400 uppercase">{item.date}</p>
-                  {item.type === 'MEDIA' && (
+                  {item.type === 'MEDIA' && item.mediaUrl && (
                     <button 
-                      onClick={() => setActiveMedia(item)}
+                      onClick={() => window.open(`/vault/${encodeURIComponent(item.mediaUrl!)}`, '_blank')}
                       className="text-[10px] font-black bg-gray-50 text-gray-500 hover:bg-primary hover:text-white px-6 py-3 rounded-xl transition-all uppercase tracking-widest shadow-sm"
                     >
                       View Gallery
                     </button>
                   )}
+
                 </div>
               </div>
             ))
@@ -168,44 +170,6 @@ export default function OrderHistory() {
           ← Return to Gallery
         </button>
       </div>
-
-      {/* 3. MEDIA VIEWER MODAL */}
-      {activeMedia && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 backdrop-blur-md p-4">
-          <div className="bg-white w-full max-w-2xl rounded-t-[40px] md:rounded-[40px] overflow-hidden shadow-2xl transition-all transform animate-in slide-in-from-bottom duration-500 border border-white">
-            <div className="p-10">
-              <div className="flex justify-between items-center mb-8">
-                <h2 className="text-xs font-black uppercase tracking-widest text-primary">
-                  Premium Access: {activeMedia.title}
-                </h2>
-                <button 
-                  onClick={() => setActiveMedia(null)}
-                  className="font-black text-[10px] uppercase bg-gray-50 text-gray-400 px-4 py-2 rounded-full hover:bg-primary/10 hover:text-primary transition-all"
-                >
-                  Close [X]
-                </button>
-              </div>
-
-              {/* Placeholder */}
-              <div className="aspect-video bg-gray-50 rounded-[32px] flex items-center justify-center border border-gray-100 mb-8 relative overflow-hidden">
-                <div className="absolute inset-0 bg-primary/5 animate-pulse"></div>
-                <p className="text-[10px] font-black uppercase tracking-[0.5em] text-primary/40 relative z-10">
-                  Opening Media...
-                </p>
-              </div>
-
-              <div className="flex flex-col md:flex-row justify-between items-center bg-gray-50 p-6 rounded-[24px] gap-4">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                  File: <span className="text-gray-900 ml-2">{activeMedia.fileName}</span>
-                </p>
-                <button className="w-full md:w-auto bg-primary text-white text-[10px] font-black px-10 py-4 rounded-full hover:bg-primary-hover shadow-lg shadow-primary/20 transition-all uppercase tracking-widest">
-                  Download
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   );
 }

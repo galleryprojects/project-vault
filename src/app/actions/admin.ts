@@ -101,6 +101,7 @@ export async function uploadVaultMedia(formData: FormData): Promise<AdminUploadR
     const slugs = formData.getAll('slugs') as string[];
     const prices = formData.getAll('prices') as string[];
     const startTimes = formData.getAll('startTimes') as string[];
+    const durations = formData.getAll('durations') as string[];
     const tiers = formData.getAll('tiers') as string[];
 
     // Map files into upload promises for PARALLEL processing
@@ -142,6 +143,7 @@ export async function uploadVaultMedia(formData: FormData): Promise<AdminUploadR
           tier: isVideo ? 99 : (parseInt(tiers[i] || '1') || 1),  
           price: finalPrice,
           start_time: isVideo ? parseInt(startTimes[i] || '0') : 0,
+          duration: isVideo ? parseFloat(durations[i] || '0') : 0,
           display_order: displayOrder
         });
 
@@ -403,23 +405,24 @@ export async function deleteMediaAsset(mediaId: string, fileUrl: string) {
   return { success: !error };
 }
 
-
 /**
  * [12] MEDIA_MANAGER: Add to Existing Collection
  */
-export async function addMediaToCollection(vaultId: string, tier: number, files: File[]) {
+export async function addMediaToCollection(vaultId: string, tier: number, files: File[], durations: number[] = []) {
   const isAuthorized = await checkAdminBypass();
   if (!isAuthorized) return { success: false };
 
   const supabase = getAdminClient();
   const results = [];
 
-  for (const file of files) {
-    // [GOD_MODE_PATCH] Sanitize folder name by stripping hashtags and replacing spaces with underscores for Cloudflare R2 compatibility
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const isVideo = file.type.startsWith('video/');
+    const fileDuration = durations[i] || 0; // Grab the specific duration for this file
+
     const sanitizedVaultFolder = vaultId.replace(/#/g, '').replace(/\s/g, '_');
     const fileName = `${sanitizedVaultFolder}/${Date.now()}-${file.name.replace(/\s/g, '_')}`;
 
-    // [PATCH 5] Upload directly to Cloudflare R2
     try {
       const fileBuffer = Buffer.from(await file.arrayBuffer());
       await r2.send(new PutObjectCommand({
@@ -434,8 +437,10 @@ export async function addMediaToCollection(vaultId: string, tier: number, files:
       const { error: dbErr } = await supabase.from('vault_media').insert({
         vault_id: vaultId,
         file_url: publicUrl,
+        media_type: isVideo ? 'video' : 'image', // Ensures DB knows it's a video
         tier: tier,
-        display_order: 1 // Default as payload
+        duration: fileDuration, // Injects the duration
+        display_order: 1 
       });
 
       if (!dbErr) results.push(publicUrl);
@@ -450,17 +455,14 @@ export async function addMediaToCollection(vaultId: string, tier: number, files:
 /**
  * [13] MEDIA_MANAGER: Swap Specific Asset File
  */
-export async function swapMediaFile(mediaId: string, oldFileUrl: string, newFile: File) {
+export async function swapMediaFile(mediaId: string, oldFileUrl: string, newFile: File, newDuration: number = 0) {
   const isAuthorized = await checkAdminBypass();
   if (!isAuthorized) return { success: false };
 
   const supabase = getAdminClient();
-
-  // [PATCH 6] Swap logic for Cloudflare R2
   let publicUrl = "";
 
   try {
-    // 1. Delete old file from R2
     const urlParts = oldFileUrl.split(`${process.env.R2_BUCKET_NAME}/`);
     const oldKey = urlParts.length > 1 ? urlParts[1] : oldFileUrl.split('/').slice(-2).join('/');
     
@@ -469,7 +471,6 @@ export async function swapMediaFile(mediaId: string, oldFileUrl: string, newFile
       Key: oldKey,
     }));
 
-    // 2. Upload new file to R2
     const vaultId = oldKey.split('/')[0];
     const sanitizedVaultFolder = vaultId.replace(/#/g, '').replace(/\s/g, '_');
     const fileName = `${sanitizedVaultFolder}/${Date.now()}-${newFile.name.replace(/\s/g, '_')}`;
@@ -482,16 +483,21 @@ export async function swapMediaFile(mediaId: string, oldFileUrl: string, newFile
       ContentType: newFile.type,
     }));
 
-    // [GOD_MODE_PATCH] Use Public CDN link for swapped files
     publicUrl = `${process.env.R2_PUBLIC_DOMAIN}/${fileName}`;
   } catch (err: any) {
     return { success: false, error: err.message ||"SWAP ERROR" };
   }
 
-  // 3. Update Database row with new URL
+  const isVideo = newFile.type.startsWith('video/');
+
+  // Updates Database row with new URL AND the new duration
   const { error: dbErr } = await supabase
     .from('vault_media')
-    .update({ file_url: publicUrl })
+    .update({ 
+      file_url: publicUrl,
+      media_type: isVideo ? 'video' : 'image',
+      duration: newDuration 
+    })
     .eq('id', mediaId);
 
   return { success: !dbErr, newUrl: publicUrl };
@@ -515,4 +521,50 @@ export async function updateAssetMetadata(assetId: string, price: string, startT
     .eq('id', assetId);
 
   return { success: !error, error };
+}
+
+
+
+/**
+ * [15] VAULT_MANAGER: Delete Entire Vault
+ */
+export async function deleteEntireVault(vaultId: string) {
+  const isAuthorized = await checkAdminBypass();
+  if (!isAuthorized) return { success: false, error: "UNAUTHORIZED_PROTOCOL" };
+
+  const supabase = getAdminClient();
+
+  // 1. Fetch all media for this vault to delete from Cloudflare R2
+  const { data: mediaAssets, error: fetchErr } = await supabase
+    .from('vault_media')
+    .select('file_url')
+    .eq('vault_id', vaultId);
+
+  if (fetchErr) return { success: false, error: fetchErr.message };
+
+  // 2. Nuke all files from R2 Storage
+  if (mediaAssets && mediaAssets.length > 0) {
+    const deletePromises = mediaAssets.map(async (asset) => {
+      try {
+        const urlParts = asset.file_url.split(`${process.env.R2_BUCKET_NAME}/`);
+        const fileKey = urlParts.length > 1 ? urlParts[1] : asset.file_url.split('/').slice(-2).join('/');
+        
+        await r2.send(new DeleteObjectCommand({
+          Bucket: process.env.R2_BUCKET_NAME,
+          Key: fileKey,
+        }));
+      } catch (err) {
+        console.error(`R2_DELETE_ERROR for ${asset.file_url}`, err);
+      }
+    });
+    await Promise.all(deletePromises);
+  }
+
+  // 3. Erase the Vault from the Database
+  const { error: dbErr } = await supabase
+    .from('vault_media')
+    .delete()
+    .eq('vault_id', vaultId);
+
+  return { success: !dbErr, error: dbErr?.message };
 }

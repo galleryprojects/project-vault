@@ -14,6 +14,15 @@ import OptimizedMedia from '@/components/OptimizedMedia';
     return extensionMatch || type === 'video';
   };
 
+  const formatDuration = (s: number) => {
+  if (!s) return "";
+  const mins = Math.floor(s / 60);
+  const secs = Math.floor(s % 60);
+  if (mins > 0 && secs > 0) return `${mins} min ${secs} secs`;
+  if (mins > 0) return `${mins} min`;
+  return `${secs} secs`;
+};
+
 // --- SUB-COMPONENT: The Sleek Locked Slider ---
 function LockedTierSlider({ paddedMedia }: { paddedMedia: any[] }) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -92,7 +101,7 @@ export default function VaultInside() {
   const [isProcessing, setIsProcessing] = useState(false);
   
   const [expandedTiers, setExpandedTiers] = useState<number[]>([1]); 
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<any | null>(null);
 
   // State for individual video unlocks and scroll refs
   const [unlockedAssetIds, setUnlockedAssetIds] = useState<string[]>([]);
@@ -315,8 +324,8 @@ export default function VaultInside() {
               {videoCollection.map((vid, idx) => {
                 const isOwned = unlockedAssetIds.includes(vid.id.toString());
                 return (
+                  <div key={vid.id} className="flex flex-col items-center gap-2 flex-shrink-0">
                   <div 
-                    key={vid.id} 
                     onClick={() => isOwned ? videoRefs.current[vid.id]?.scrollIntoView({behavior: 'smooth'}) : handleUnlockVideo(vid)} 
                     // Patch 2: Strict size and perfect rounding
                     className="relative w-[80px] h-[80px] min-w-[80px] bg-black rounded-full overflow-hidden cursor-pointer flex-shrink-0 group shadow-sm hover:shadow-md transition-shadow"
@@ -348,13 +357,21 @@ export default function VaultInside() {
                     />
                     
                     <div className={`absolute top-2 right-2 px-2 py-1 rounded-md text-[9px] font-black uppercase shadow-sm ${isOwned ? 'bg-green-500 text-white' : 'bg-primary text-white'}`}>
-                      {isOwned ? 'OWNED' : `$${vid.price?.toFixed(2) || '5.00'}`}
+                      {isOwned ? 'OWNED' : `$${vid.price?.toFixed(2)}`}
                     </div>
 
                     {!isOwned && (
                       <div className="absolute inset-0 flex items-center justify-center">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="opacity-80"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                       </div>
+                    )}
+                  </div>
+
+                  {/* --- ADD DURATION TEXT BELOW CIRCLE --- */}
+                    {vid.duration > 0 && (
+                      <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">
+                        {formatDuration(vid.duration)}
+                      </span>
                     )}
                   </div>
                 );
@@ -389,7 +406,7 @@ export default function VaultInside() {
                     {/* --- CENTER PLAY ICON --- */}
                     <div 
                       className="absolute inset-0 flex items-center justify-center z-20"
-                      onClick={() => setSelectedImage(vid.file_url)}
+                      onClick={() => setSelectedImage(vid)}
                     >
                       <div className="bg-white/20 backdrop-blur-md p-4 rounded-full border border-white/30 group-hover:scale-110 transition-transform duration-300">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
@@ -409,6 +426,14 @@ export default function VaultInside() {
                         <line x1="12" y1="15" x2="12" y2="3"></line>
                       </svg>
                     </button>
+
+                    {/* --- ADD DURATION BADGE FOR PURCHASED GRID --- */}
+                    {vid.duration > 0 && (
+                       <div className="absolute top-3 left-3 z-30 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md border border-white/10">
+                         <span className="text-[8px] font-black text-white uppercase tracking-widest">{formatDuration(vid.duration)}</span>
+                       </div>
+                    )}
+
                   </div>
                 );
               })}
@@ -477,7 +502,7 @@ export default function VaultInside() {
                           {tierMedia.map((item, index) => (
                             <div 
                               key={item.id} 
-                              onClick={() => setSelectedImage(item.file_url)}
+                              onClick={() => setSelectedImage(item)}
                               className="group aspect-[3/4] bg-black rounded-2xl relative overflow-hidden border border-black/5 shadow-sm cursor-pointer transition-all"
                             >
                               {/* MEDIA DISPLAY */}
@@ -528,52 +553,55 @@ export default function VaultInside() {
         </div>
       </div>
 
-      {/* FULL SCREEN LIGHTBOX OVERLAY */}
+      {/* FULL SCREEN LIGHTBOX OVERLAY - [TIGHTENED LAYOUT NO OVERLAP] */}
       {selectedImage && (
         <div 
-          className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 z-[200] animate-in fade-in duration-300"
-          onClick={() => setSelectedImage(null)}
+          className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-4 z-[200] animate-in fade-in duration-300"
+          onClick={() => setSelectedImage(null)} // Click background to close
         >
-          {/* CONTROLS CONTAINER */}
-          <div className="absolute top-6 right-6 flex gap-3 z-[250]">
-            <button 
-              onClick={(e) => { 
-                e.stopPropagation(); 
-                // [FIX] Checking if selectedImage exists before splitting prevents the crash
-                if (selectedImage) {
-                  const rawUrl = selectedImage.split('?')[0];
-                  handleDownload(rawUrl, `vault-media-${Date.now()}`);
-                }
-              }}
-              className="text-white font-black text-[10px] tracking-widest uppercase bg-primary px-6 py-3 rounded-full hover:bg-white hover:text-black transition-all shadow-lg"
-            >
-              [ DOWNLOAD ]
-            </button>
+          {/* 1. CONTENT CONTAINER - [THE FIX]: Vertically stacks buttons and media, prevents overlap */}
+          <div className="flex flex-col items-center w-full max-w-[95vw] max-h-[95vh] space-y-6" onClick={(e) => e.stopPropagation()}>
+            
+            {/* 2. CONTROLS ROW - Now sits nicely ABOVE the media */}
+            <div className="flex gap-4 animate-in slide-in-from-top-4 duration-500">
+              <button 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  if (selectedImage && selectedImage.file_url) {
+                    const rawUrl = selectedImage.file_url.split('?')[0];
+                    handleDownload(rawUrl, `vault-media-${Date.now()}`);
+                  }
+                }}
+                className="text-white font-black text-[11px] tracking-widest uppercase bg-primary px-8 py-4 rounded-full hover:bg-white hover:text-black transition-all shadow-[0_0_20px_rgba(255,102,0,0.3)] active:scale-95"
+              >
+                [ DOWNLOAD_EXCLUSIVE ]
+              </button>
 
-            <button 
-              onClick={() => setSelectedImage(null)}
-              className="text-white font-black text-[10px] tracking-widest uppercase bg-white/10 px-6 py-3 rounded-full hover:bg-white/20 transition-colors"
-            >
-              Close [X]
-            </button>
-          </div>
+              <button 
+                onClick={() => setSelectedImage(null)}
+                className="text-white font-black text-[11px] tracking-widest uppercase bg-white/10 px-8 py-4 rounded-full hover:bg-white/20 transition-colors active:scale-95"
+              >
+                Exit [X]
+              </button>
+            </div>
 
-          {/* CONTENT DISPLAY */}
-          <div className="max-w-full max-h-[90vh] flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-            {isVideo(selectedImage) ? (
-              <video 
-                src={selectedImage} 
-                controls 
-                autoPlay
-                className="max-w-full max-h-[90vh] rounded-lg shadow-2xl animate-in zoom-in-95 duration-300"
-              />
-            ) : (
-              <img 
-                src={selectedImage} 
-                alt="Expanded view" 
-                className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-300"
-              />
-            )}
+            {/* 3. MEDIA CONTAINER - The frame for the photo or video */}
+            <div className="relative flex-1 w-full flex items-center justify-center overflow-hidden rounded-2xl border border-white/5 bg-black shadow-2xl animate-in zoom-in-95 duration-300">
+              {isVideo(selectedImage) ? (
+                <video 
+                  src={selectedImage.file_url} 
+                  controls 
+                  autoPlay
+                  className="max-w-full max-h-full object-contain" // object-contain ensures the whole video fits inside the frame
+                />
+              ) : (
+                <img 
+                  src={selectedImage.file_url} 
+                  alt="Expanded view" 
+                  className="max-w-full max-h-full object-contain" // object-contain ensures the whole image fits inside the frame
+                />
+              )}
+            </div>
           </div>
         </div>
       )}

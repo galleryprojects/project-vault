@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS vault_media (
   tier INT DEFAULT 1, -- [NEW] Assigns picture to Batch 1 or Batch 2
   display_order INT DEFAULT 0, 
   start_time INT DEFAULT 0,
+  duration NUMERIC DEFAULT 0;
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

@@ -16,7 +16,10 @@ function VaultCard({ item, index, onClick, isProcessing, unlockedTiers }: { item
   const formatDuration = (seconds: number) => {
     if (!seconds) return "VIDEO CONTENT";
     const mins = Math.floor(seconds / 60);
-    return `${mins}MINS+`;
+    const secs = Math.floor(seconds % 60);
+    if (mins > 0 && secs > 0) return `${mins} min ${secs} secs`;
+    if (mins > 0) return `${mins} min`;
+    return `${secs} secs`;
   };
 
   const isVideo = (url: string) => url?.match(/\.(mp4|webm|ogg|mov)$/i);

@@ -14,10 +14,9 @@ interface OptimizedMediaProps {
 export default function OptimizedMedia({ src, alt = "media", type, className = "", priority = false }: OptimizedMediaProps) {
   const [isLoaded, setIsLoaded] = useState(false);
 
-  const optimizedSrc = type === 'image' 
+  const optimizedSrc = (type === 'image' && !src.startsWith('blob:'))
     ? `${src}?width=400&quality=75` 
     : src;
-
   if (type === 'video') {
     return (
       <div className={`relative w-full h-full bg-black overflow-hidden ${className}`}>

@@ -12,11 +12,15 @@ function VideoPrecisionCard({ fileObj, onUpdate, onRemove, isCover = false }: an
   const [duration, setDuration] = useState(fileObj.duration || 0);
 
   const formatDuration = (s: number) => {
+    if (!s) return "0 secs";
     const mins = Math.floor(s / 60);
     const secs = Math.floor(s % 60);
-    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+    if (mins > 0 && secs > 0) return `${mins} min ${secs} secs`;
+    if (mins > 0) return `${mins} min`;
+    return `${secs} secs`;
   };
 
+  
   useEffect(() => {
     onUpdate(fileObj.id, { startTime: localStart, price: localPrice, duration: duration });
   }, [localStart, localPrice, duration]);
