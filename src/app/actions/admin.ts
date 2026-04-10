@@ -246,71 +246,95 @@ export async function getPendingDeposits() {
 
 
 /**
- * [6] DEPOSIT_VERIFY: AUTHORIZE_SYNC
- * Hardened with full exports and error logging
+ * [6] DEPOSIT_VERIFY: AUTHORIZE_SYNC (Scrubbed & Silent)
  */
 export async function approveDeposit(depositId: string, userId: string, amount: number) {
   const isAuthorized = await checkAdminBypass();
-  if (!isAuthorized) return { success: false, error: "UNAUTHORIZED_PROTOCOL" };
-
-  // Use the Admin Client (Service Role) to bypass all RLS policies
-  const supabase = getAdminClient();
-
-  // 1. Fetch current profile balance
-  const { data: profile, error: profileFetchErr } = await supabase
-    .from('profiles')
-    .select('balance')
-    .eq('id', userId)
-    .single();
-
-  if (profileFetchErr) return { success: false, error: "PROFILE_FETCH_FAILED" };
-
-  const currentBalance = Number(profile?.balance) || 0;
-  const injectionAmount = Number(amount);
-  const newBalance = currentBalance + injectionAmount;
-
-  // 2. Update the user balance
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .update({ balance: newBalance })
-    .eq('id', userId);
-
-  if (profileError) return { success: false, error: "BALANCE_SYNC_FAILED" };
-
-  // 3. Close the Deposit Loop
-  // We use the exact 'id' from the deposit record
-  const { error: depositError } = await supabase
-    .from('deposits')
-    .update({ status: 'SUCCESS' })
-    .eq('id', depositId);
-
-  if (depositError) {
-    // Log the exact database error to the console for debugging
-    console.error("DEPOSIT_LOOP_FAILURE_LOG:", depositError);
-    return { success: false, error: `DEPOSIT_LOOP_FAILURE: ${depositError.message}` };
+  
+  // Silent Security: If not authorized and not a valid TG bypass, exit immediately.
+  if (!isAuthorized && depositId !== "TG_AUTO") {
+    return { success: false };
   }
 
-  return { success: true, newBalance };
+  const supabase = getAdminClient();
+
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('balance')
+      .eq('id', userId)
+      .single();
+
+    if (!profile) return { success: false };
+
+    const newBalance = (Number(profile.balance) || 0) + Number(amount);
+
+    // 1. Inject Balance
+    await supabase
+      .from('profiles')
+      .update({ balance: newBalance })
+      .eq('id', userId);
+
+    // 2. Close Loop
+    if (depositId === "TG_AUTO") {
+      await supabase
+        .from('deposits')
+        .update({ status: 'SUCCESS' })
+        .eq('user_id', userId)
+        .eq('status', 'PENDING');
+    } else {
+      await supabase
+        .from('deposits')
+        .update({ status: 'SUCCESS' })
+        .eq('id', depositId);
+    }
+
+    return { success: true, newBalance };
+  } catch (err) {
+    console.error("SYNC_CRASH"); // Internal log only
+    return { success: false };
+  }
 }
 
 /**
- * [7] DEPOSIT_VERIFY: REJECT_CLAIM
+ * [7] DEPOSIT_VERIFY: REJECT_CLAIM (Scrubbed & Silent)
  */
-export async function rejectDeposit(depositId: string) {
-  const isAuthorized = await checkAdminBypass();
-  if (!isAuthorized) return { success: false, error: "UNAUTHORIZED_PROTOCOL" };
-
+export async function rejectDeposit(identifier: string, reason: string = 'FAILED', isTelegram: boolean = false) {
   const supabase = getAdminClient();
 
+  // If not triggered via the Telegram Webhook, enforce the standard web session check
+  if (!isTelegram) {
+    const isAuthorized = await checkAdminBypass();
+    if (!isAuthorized) return { success: false, error: "Unauthorized access" };
+  }
+
+  let targetId = identifier;
+
+  // Telegram only passes the user_id via callback data due to byte limits.
+  // We locate their most recent pending deposit to apply the rejection.
+  if (isTelegram) {
+     const { data } = await supabase
+        .from('deposits')
+        .select('id')
+        .eq('user_id', identifier)
+        .eq('status', 'PENDING')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+     if (!data) return { success: false, error: "No pending request found." };
+     targetId = data.id;
+  }
+
+  // Apply the specific rejection reason to the database
   const { error } = await supabase
     .from('deposits')
-    .update({ status: 'FAILED' })
-    .eq('id', depositId);
+    .update({ status: reason })
+    .eq('id', targetId);
 
-  if (error) return { success: false, error: "REJECTION_PROTOCOL_FAILED" };
+  if (error) return { success: false, error: "Could not update record." };
   return { success: true };
 }
-
 
 /**
  * [8] MEDIA_MANAGER: Fetch Collection Gallery

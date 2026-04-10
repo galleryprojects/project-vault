@@ -54,6 +54,7 @@ export default function SignUp() {
               type="text"
               placeholder="Pick a username"
               required
+              suppressHydrationWarning
               className="w-full bg-gray-50 border border-primary/20 rounded-2xl px-4 py-4 text-sm text-primary placeholder:text-gray-300 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
             />
           </div>
@@ -65,6 +66,7 @@ export default function SignUp() {
               type={showPassword ? "text" : "password"} 
               placeholder="CREATE PASSPHRASE"
               required
+              suppressHydrationWarning
               className="w-full bg-gray-50 border border-primary/20 rounded-2xl px-4 py-4 text-sm text-primary placeholder:text-gray-300 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
             />
             <button 
@@ -83,6 +85,7 @@ export default function SignUp() {
               type={showPassword ? "text" : "password"} 
               placeholder="RE-ENTER PASSPHRASE"
               required
+              suppressHydrationWarning
               className="w-full bg-gray-50 border border-primary/20 rounded-2xl px-4 py-4 text-sm text-primary placeholder:text-gray-300 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
             />
           </div>

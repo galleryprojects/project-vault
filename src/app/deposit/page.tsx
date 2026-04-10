@@ -10,6 +10,7 @@ export default function DepositPage() {
 
   // --- UI STATES ---
   const [method, setMethod] = useState<'GIFTCARD' | 'CRYPTO' | null>(null);
+  const [gcType, setGcType] = useState<'PHYSICAL' | 'ECODE' | null>(null);
   const [activeCoin, setActiveCoin] = useState<string | null>(null);
   const [depositAddress, setDepositAddress] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
@@ -83,14 +84,15 @@ export default function DepositPage() {
     const formData = new FormData(e.currentTarget);
     const amount = parseFloat(formData.get('amount') as string);
 
-    if (amount < 10) {
-      setGiftCardError("BELOW MINIMUM IS 10");
+    if (amount <0) {
+      setGiftCardError("BELOW MINIMUM IS 20");
       return;
     }
 
     setGiftCardError(null);
     setLoading(true);
     formData.append('method', 'GIFTCARD');
+    formData.append('gcType', gcType || 'ECODE');
     
     const result = await submitDeposit(formData);
     if (result.success) setSubmitted(true);
@@ -113,11 +115,18 @@ export default function DepositPage() {
 
       {/* --- HEADER --- */}
       <div className="z-10 w-full max-w-2xl px-6 py-12 border-b border-gray-100 mb-10 flex justify-between items-end">
-        <div>
+         <div>
           <h1 className="text-2xl font-black italic tracking-tighter uppercase text-primary leading-none">Sy Exclusive</h1>
-          <div className="mt-4 space-y-1">
-            <p className="text-[10px] font-bold text-black uppercase tracking-[0.2em]">Minimum Deposit Is: $10.00</p>
-            <p className="text-[10px] font-bold text-black uppercase tracking-[0.2em]">Lesser value will not be processed!!!</p>
+          <div className="mt-4 space-y-2">
+            {/* UPDATED $20 HARD DECK WARNING */}
+            <div className="inline-block p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+              <p className="text-[11px] font-bold text-red-500 uppercase tracking-[0.1em] flex items-center gap-2">
+                <span>⚠️</span> Minimum Deposit Is: $20.00
+              </p>
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mt-1">
+                Any lesser value will be rejected by the network.
+              </p>
+            </div>
           </div>
         </div>
         
@@ -145,12 +154,6 @@ export default function DepositPage() {
             {/* --- ACTIVE CRYPTO WALLET --- */}
             {activeCoin && depositAddress && (
               <div className="bg-primary/5 border-2 border-primary p-6 rounded-[32px] animate-in zoom-in duration-500 shadow-xl shadow-primary/10">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-[10px] font-black uppercase tracking-widest italic text-red-900">
-                    Minimum Deposit For {activeCoin}: $10.00 USD
-                  </h2>
-                </div>
-                
                 <div className="space-y-6">
                   <div className="flex justify-center bg-white p-4 rounded-3xl border border-primary/20 mx-auto w-fit shadow-sm">
                     <QRCodeSVG 
@@ -220,25 +223,86 @@ export default function DepositPage() {
               <div className="flex justify-between items-center mb-2">
                 <h2 className="text-lg font-black uppercase italic text-gray-800">💳 Gift Card</h2>
                 {method === 'GIFTCARD' && (
-                  <button onClick={(e) => { e.stopPropagation(); setMethod(null); }} className="text-[9px] font-black text-primary uppercase">Close</button>
+                  <button onClick={(e) => { e.stopPropagation(); setMethod(null); setGcType(null); }} className="text-[9px] font-black text-primary uppercase">Close</button>
                 )}
               </div>
               
               {method === 'GIFTCARD' ? (
-                <form onSubmit={handleGiftCardSubmit} className="mt-6 space-y-4 animate-in slide-in-from-top-4">
-                  <input name="platform" placeholder="Brand (e.g. Apple, Steam)" required className="w-full bg-transparent border-b border-gray-200 py-3 text-sm font-bold text-primary outline-none focus:border-primary" />
-                  <div>
-                    <input name="amount" type="number" step="0.01" placeholder="Amount ($)" required onChange={() => setGiftCardError(null)} className="w-full bg-transparent border-b border-gray-200 py-3 text-sm font-bold text-primary outline-none" />
-                    {giftCardError && <p className="text-red-500 text-[9px] font-black mt-1 uppercase animate-pulse">{giftCardError}</p>}
+                <div className="mt-4 animate-in slide-in-from-top-4">
+                  {/* STEP 2: THE FORK (PHYSICAL OR E-CODE) */}
+                  <div className="flex gap-2 mb-6">
+                    <button 
+                      type="button"
+                      onClick={() => setGcType('PHYSICAL')}
+                      className={`flex-1 py-3 rounded-xl border-2 font-black text-[11px] uppercase tracking-widest transition-all ${gcType === 'PHYSICAL' ? 'border-primary bg-primary text-white' : 'border-gray-200 text-gray-400 hover:border-primary/50'}`}
+                    >
+                      Physical Card
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setGcType('ECODE')}
+                      className={`flex-1 py-3 rounded-xl border-2 font-black text-[11px] uppercase tracking-widest transition-all ${gcType === 'ECODE' ? 'border-primary bg-primary text-white' : 'border-gray-200 text-gray-400 hover:border-primary/50'}`}
+                    >
+                      E-Code
+                    </button>
                   </div>
-                  <input name="code" placeholder="Redemption Code" required className="w-full bg-transparent border-b border-primary/30 py-3 text-sm font-bold text-primary outline-none" />
-                  <button disabled={loading} className="w-full bg-primary py-5 rounded-full font-black text-[11px] text-white uppercase tracking-widest shadow-xl shadow-primary/20 transition-all">
-                    {loading ? "PROCESSING..." : "CONFIRM DEPOSIT"}
-                  </button>
-                </form>
+
+                  {/* STEP 3: THE FORM */}
+                  {gcType && (
+                    <form onSubmit={handleGiftCardSubmit} className="space-y-4 animate-in fade-in">
+                      <input name="platform" placeholder="Brand (e.g. Apple, Steam)" required className="w-full bg-transparent border-b border-gray-200 py-3 text-sm font-bold text-primary outline-none focus:border-primary" />
+                      
+                      <div>
+                        <input name="amount" type="number" step="0.01" placeholder="Amount ($)" required onChange={() => setGiftCardError(null)} className="w-full bg-transparent border-b border-gray-200 py-3 text-sm font-bold text-primary outline-none focus:border-primary" />
+                        {giftCardError && <p className="text-red-500 text-[9px] font-black mt-1 uppercase animate-pulse">{giftCardError}</p>}
+                      </div>
+
+                      {/* CONDITIONAL RENDER BASED ON GC TYPE */}
+                      {gcType === 'ECODE' ? (
+                        <input name="code" placeholder="Redemption Code" required className="w-full bg-transparent border-b border-primary/30 py-3 text-sm font-bold text-primary outline-none focus:border-primary" />
+                      ) : (
+                        <div className="pt-2">
+                          {/* Hidden input ensures the backend database doesn't crash from a missing code parameter */}
+                          <input type="hidden" name="code" value="PHYSICAL_UPLOAD" />
+                          
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Upload a clear picture of the card</p>
+                          <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center hover:border-primary/50 transition-colors bg-gray-50 relative group">
+                            <input 
+                              type="file" 
+                              name="cardImage" 
+                              accept="image/*" 
+                              required 
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const label = document.getElementById('file-upload-label');
+                                  if (label) label.innerText = file.name;
+                                }
+                              }}
+                            />
+                            <div className="pointer-events-none flex flex-col items-center gap-2 group-hover:scale-105 transition-transform">
+                              <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                              </svg>
+                              <span id="file-upload-label" className="text-[11px] font-bold text-primary uppercase tracking-widest">
+                                Tap to attach photo
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <button disabled={loading} className="w-full bg-primary py-5 rounded-full font-black text-[11px] text-white uppercase tracking-widest shadow-xl shadow-primary/20 transition-all mt-6">
+                        {loading ? "PROCESSING..." : "CONFIRM DEPOSIT"}
+                      </button>
+                    </form>
+                  )}
+                </div>
               ) : (
                 <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Seamless Verification</p>
               )}
+
             </div>
 
             {/* --- CRYPTO SELECTION --- */}

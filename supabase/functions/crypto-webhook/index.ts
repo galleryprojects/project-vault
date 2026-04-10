@@ -36,7 +36,39 @@ Deno.serve(async (req) => {
     // 3. Exact Math
     const exactUsdValue = (totalSatoshis / 100000000.0) * livePrice;
 
-    // 4. Send the exact USD amount to the database
+    // ==========================================
+    // 🔒 THE SILENT LOCK PROTOCOL (WEBHOOK)
+    // ==========================================
+    if (exactUsdValue < 20) {
+      console.warn(`[WEBHOOK LOCK] Dropping underpaid Tx: ${txHash}. Value: $${exactUsdValue}`);
+      
+      // Check if it was already locked by the manual Detect button
+      const { data: existingTx } = await supabase
+        .from('deposits')
+        .select('id')
+        .eq('tx_hash', txHash)
+        .maybeSingle();
+
+      if (!existingTx) {
+        // Log it directly as UNDERPAID so it's locked forever.
+        await supabase.from('deposits').insert({
+          address: matchedAddress,
+          platform: matchedCoin,
+          amount: exactUsdValue,
+          status: 'UNDERPAID',
+          tx_hash: txHash
+        });
+      }
+
+      // Return 200 OK so Blockcypher stops retrying, but DO NOT credit the user.
+      return new Response(JSON.stringify({ success: true, note: "Locked as UNDERPAID" }), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
+    // ==========================================
+
+    // 4. Send the exact USD amount to the database (Proceed Normally)
     const { error } = await supabase.rpc('confirm_crypto_deposit', {
       target_address: matchedAddress,
       transaction_id: txHash,

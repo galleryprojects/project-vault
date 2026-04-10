@@ -440,6 +440,8 @@ export default function VaultInside() {
             </div>
           )}
 
+         
+
           {/* IMAGE TIERS */}
           {uniqueTiers.length === 0 ? (
              <div className="text-center py-20 opacity-30 text-[10px] font-black uppercase tracking-widest text-gray-500">
@@ -546,13 +548,54 @@ export default function VaultInside() {
 
                     </div>
                   )}
+
+
+              
                 </section>
+
               );
+
+              
             })
+            
           )}
+          
         </div>
       </div>
 
+      {/* --- THE CLEAN COMING SOON SECTION --- */}
+        <section className="w-full flex flex-col items-center justify-center text-center mt-32 mb-40 py-24 bg-[#F7F7F5] border-y border-gray-100 relative overflow-hidden">
+          
+          {/* Giant Ghost Text Background */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
+            <span className="text-[200px] md:text-[400px] font-black uppercase italic tracking-tighter leading-none">
+              SY
+            </span>
+          </div>
+
+          {/* Main Stylized Typography */}
+          <div className="relative z-10">
+            <h2 className="text-[65px] md:text-[140px] font-black uppercase italic leading-[0.8] tracking-tighter text-gray-900">
+              More<br/>
+              Collections<br/>
+              <span className="text-primary"> Updated Daily</span>
+            </h2>
+            
+            {/* The "Always Check Back" Badge */}
+            <div className="mt-12 inline-block px-10 py-4 bg-black text-white text-[11px] md:text-[14px] font-black uppercase tracking-[0.5em] italic shadow-2xl transform -rotate-1 hover:rotate-0 transition-transform duration-300">
+              Always Check Back
+            </div>
+          </div>
+
+          {/* Security Tagline */}
+          <div className="mt-20 flex flex-col items-center gap-4">
+            <div className="w-12 h-[1px] bg-gray-200"></div>
+            <p className="text-[12px] font-bold text-gray-800 uppercase tracking-[0.6em] select-none">
+              Archives that worths it  ✨
+            </p>
+          </div>
+        </section>
+       
       {/* FULL SCREEN LIGHTBOX OVERLAY - [TIGHTENED LAYOUT NO OVERLAP] */}
       {selectedImage && (
         <div 

