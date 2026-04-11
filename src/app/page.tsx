@@ -402,6 +402,15 @@ export default function Home() {
               <a href="/" className="border-b-4 border-black w-fit">Home</a>
               <a href="/orders" className="text-gray-300">Order Records</a>
               <a href="/account" className="border-b-4 border-black w-fit">Profile</a>
+                <a 
+                href="/support" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="border-b-4 border-black w-fit"
+              >
+                Support
+              </a>
+
               <button onClick={async () => { await logoutUser(); window.location.href = '/login'; }} className="mt-12 text-xs font-black text-red-500 uppercase tracking-widest text-left pt-6 border-t border-gray-100">Terminate Session</button>
             </nav>
           </div>

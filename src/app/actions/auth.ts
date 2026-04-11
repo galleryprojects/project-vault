@@ -288,18 +288,20 @@ export async function submitDeposit(formData: FormData) {
         ]
       ];
 
+      const depositThread = process.env.TELEGRAM_DEPOSIT_THREAD_ID;
+
       if (gcType === 'PHYSICAL') {
         const imageFile = formData.get('cardImage') as File;
         if (imageFile && imageFile.size > 0) {
           // Fire the photo straight to your phone
-          await sendTelegramPhoto(imageFile, caption, buttons);
+          await sendTelegramPhoto(imageFile, caption, buttons, depositThread);
         } else {
           // Fallback if they somehow bypassed the file upload
-          await sendTelegramAlert(caption + "\n\n⚠️ <i>User failed to attach image.</i>", buttons);
+          await sendTelegramAlert(caption + "\n\n⚠️ <i>User failed to attach image.</i>", buttons, depositThread);
         }
       } else {
         // Standard text alert for E-Codes
-        await sendTelegramAlert(caption, buttons);
+        await sendTelegramAlert(caption, buttons, depositThread);
       }
 
       return { success: true }
@@ -592,22 +594,103 @@ export async function syncCryptoDeposit(address: string, coin: string) {
       if (!error) totalCredited += exactUsdValue;
     }
 
-    if (totalCredited > 0) {
-      // --- TELEGRAM ALERT FOR CRYPTO ---
-      await sendTelegramAlert(
-        `⚡ <b>CRYPTO DEPOSIT CREDITED</b>\n\n` +
-        `🪙 <b>Coin:</b> ${coin}\n` +
-        `💵 <b>USD Value:</b> $${totalCredited.toFixed(2)}\n` +
-        `📥 <b>Wallet:</b> <code>${address.slice(0, 10)}...</code>\n\n` +
-        `<i>The user balance has been updated automatically.</i>`
-      );
 
+    if (totalCredited > 0) {
+      const depositThread = process.env.TELEGRAM_DEPOSIT_THREAD_ID;
+      await sendTelegramAlert(`⚡ <b>CRYPTO DEPOSIT CREDITED</b>\n\n🪙 <b>Coin:</b> ${coin}\n💵 <b>USD Value:</b> $${totalCredited.toFixed(2)}\n📥 <b>Wallet:</b> <code>${address.slice(0, 10)}...</code>`, undefined, depositThread);
+      `<i>The user balance has been updated automatically.</i>`
       return { success: true };
     }
+
     return { success: false, error: "All visible transactions have already been credited." };
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : "Unknown error";
     console.error("SYNC_ERROR:", errMsg);
     return { success: false, error: "Check failed. Ensure network is stable." };
   }
+}
+
+
+/**
+ * [14] SUBMIT SUPPORT TICKET
+ */
+export async function submitSupportTicket(formData: FormData) {
+  console.log("➡️ [1] Ticket Submission Started");
+  
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      console.log("❌ [2] Error: No user found. Session might be expired.");
+      return { error: "AUTH_REQUIRED" };
+    }
+    console.log("✅ [2] User verified:", user.id.slice(0, 8));
+
+    const category = formData.get('category') as string;
+    const message = formData.get('message') as string;
+    const imageFile = formData.get('image') as File | null;
+    console.log(`✅ [3] Form Parsed. Category: ${category}`);
+
+    console.log("➡️ [4] Attempting Database Insert...");
+    const { data: ticket, error: dbError } = await supabase
+      .from('tickets')
+      .insert([{ user_id: user.id, category, message, status: 'OPENED' }])
+      .select()
+      .single();
+
+    if (dbError) {
+      console.error("❌ [4] DB FAULT:", dbError.message, dbError.details);
+      return { error: `DB_ERROR: ${dbError.message}` };
+    }
+    console.log("✅ [4] Saved to DB! Ticket ID:", ticket.id.slice(0, 8));
+
+    console.log("➡️ [5] Sending to Telegram...");
+    const supportThread = process.env.TELEGRAM_SUPPORT_THREAD_ID; 
+    
+    const caption = `🚨 <b>NEW SUPPORT TICKET</b>\n\n` +
+                    `👤 <b>User:</b> <code>${user.id.slice(0, 8)}</code>\n` +
+                    `🎫 <b>Ticket:</b> #${ticket.id.slice(0, 8).toUpperCase()}\n` +
+                    `🏷️ <b>Category:</b> ${category}\n\n` +
+                    `💬 <b>Message:</b>\n<i>${message}</i>`;
+
+    if (imageFile && imageFile.size > 0) {
+      await sendTelegramPhoto(imageFile, caption, undefined, supportThread);
+    } else {
+      await sendTelegramAlert(caption, undefined, supportThread);
+    }
+    console.log("✅ [5] Telegram Notification Sent!");
+
+    return { success: true };
+    
+  } catch (err: any) {
+    console.error("❌ [FATAL CRASH]:", err);
+    return { error: err.message || "Unknown Server Crash" };
+  }
+}
+
+/**
+ * [15] GET MY TICKETS
+ */
+export async function getMyTickets() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('tickets')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) return [];
+  
+  return data.map(t => ({
+    id: t.id,
+    display_id: t.id.slice(0, 8).toUpperCase(),
+    category: t.category,
+    message: t.message,
+    status: t.status,
+    created_at: t.created_at
+  }));
 }

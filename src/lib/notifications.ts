@@ -1,6 +1,6 @@
 // src/lib/notifications.ts
 
-export async function sendTelegramAlert(message: string, buttons?: any) {
+export async function sendTelegramAlert(message: string, buttons?: any, threadId?: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
 
@@ -16,6 +16,11 @@ export async function sendTelegramAlert(message: string, buttons?: any) {
     text: message,
     parse_mode: 'HTML',
   };
+
+  // [NEW] Routes message to a specific Telegram Topic
+  if (threadId) {
+    body.message_thread_id = threadId;
+  }
 
   // If buttons are provided, we attach them as an Inline Keyboard
   if (buttons) {
@@ -39,8 +44,6 @@ export async function sendTelegramAlert(message: string, buttons?: any) {
     console.error("TELEGRAM_FETCH_CRASH:", err);
   }
 }
-
-// src/lib/notifications.ts
 
 export async function editTelegramMessage(messageId: number, text: string, buttons?: any) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -72,7 +75,7 @@ export async function editTelegramMessage(messageId: number, text: string, butto
   }
 }
 
-export async function sendTelegramPhoto(file: File, caption: string, buttons?: any) {
+export async function sendTelegramPhoto(file: File, caption: string, buttons?: any, threadId?: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
 
@@ -86,6 +89,11 @@ export async function sendTelegramPhoto(file: File, caption: string, buttons?: a
   formData.append('caption', caption);
   formData.append('parse_mode', 'HTML');
   formData.append('photo', file);
+
+  // [NEW] Routes photo to a specific Telegram Topic
+  if (threadId) {
+    formData.append('message_thread_id', threadId);
+  }
 
   if (buttons) {
     formData.append('reply_markup', JSON.stringify({ inline_keyboard: buttons }));

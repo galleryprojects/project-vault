@@ -53,6 +53,16 @@ CREATE TABLE IF NOT EXISTS vault_media (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+
+CREATE TABLE IF NOT EXISTS tickets (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  category TEXT NOT NULL,
+  message TEXT NOT NULL,
+  status TEXT DEFAULT 'OPENED' CHECK (status IN ('OPENED', 'PENDING', 'CLOSED')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
 -- Security Policies
 -- [1] Enable Security (Safe to run multiple times)
 ALTER TABLE vault_media ENABLE ROW LEVEL SECURITY;
@@ -64,3 +74,16 @@ DROP POLICY IF EXISTS "Allow public read access" ON vault_media;
 -- [3] Create the policy fresh
 CREATE POLICY "Allow public read access" ON vault_media
   FOR SELECT USING (true);
+
+-- 1. Explicitly enable Row Level Security for the table
+ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
+
+-- 2. Allow users to INSERT a ticket (only if the user_id matches their own account)
+CREATE POLICY "Users can create tickets" 
+ON tickets FOR INSERT 
+WITH CHECK (auth.uid() = user_id);
+
+-- 3. Allow users to SELECT/VIEW their tickets (only their own)
+CREATE POLICY "Users can view own tickets" 
+ON tickets FOR SELECT 
+USING (auth.uid() = user_id);  
