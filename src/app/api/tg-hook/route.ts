@@ -1,10 +1,64 @@
 // src/app/api/tg-hook/route.ts
 import { NextResponse } from 'next/server';
 import { approveDeposit, rejectDeposit } from '@/app/actions/admin';
+import { createClient } from '@supabase/supabase-js';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
+    // ==========================================
+    // [NEW] PART 1: ADMIN CHAT REPLIES (DYNAMIC FOLDERS)
+    // ==========================================
+    if (body.message && body.message.text && body.message.message_thread_id) {
+      
+      // Ignore messages sent by the bot itself (like the initial ticket alert)
+      if (body.message.from?.is_bot) return NextResponse.json({ ok: true });
+
+      const threadId = body.message.message_thread_id.toString();
+      const adminReply = body.message.text;
+
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY! 
+      );
+
+      // Find the exact ticket linked to this Telegram folder
+      const { data: ticket, error: fetchErr } = await supabase
+        .from('tickets')
+        .select('id')
+        .eq('telegram_thread_id', threadId)
+        .single();
+
+      if (ticket) {
+        // Save reply into live chat history
+        await supabase.from('ticket_messages').insert([{
+          ticket_id: ticket.id,
+          sender_type: 'ADMIN',
+          message: adminReply
+        }]);
+
+        // Update status
+        await supabase.from('tickets').update({ status: 'ANSWERED' }).eq('id', ticket.id);
+
+        // 🚨 SEND CONFIRMATION TO ADMIN IN TELEGRAM
+        await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: body.message.chat.id,
+            message_thread_id: threadId,
+            text: "✅ Sent to user!"
+          })
+        });
+
+        return NextResponse.json({ ok: true }); 
+      }
+    }
+
+    // ==========================================
+    // PART 2: EXISTING INLINE BUTTON CLICKS (DEPOSITS)
+    // ==========================================
     if (!body.callback_query) return NextResponse.json({ ok: true });
 
     const { data, message } = body.callback_query;
@@ -16,14 +70,11 @@ export async function POST(req: Request) {
     const messageId = message.message_id;
     const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
-    // --- DYNAMIC TELEGRAM UPDATER ---
-    // Safely gets the existing text whether it's a standard message or a photo caption
     const originalText = message.text || message.caption || '';
     const isPhoto = !!message.photo;
     const apiEndpoint = isPhoto ? 'editMessageCaption' : 'editMessageText';
     const textParam = isPhoto ? 'caption' : 'text';
 
-    // Helper function to handle the fetch directly so it never fails on photos
     const updateTgUI = async (newText: string, buttons?: any) => {
       const payload: any = {
         chat_id: chatId,
@@ -39,13 +90,11 @@ export async function POST(req: Request) {
         body: JSON.stringify(payload)
       });
     };
-    // ---------------------------------
 
     const parts = data.split('_');
     const action = parts[0];
     const subAction = parts[1];
 
-    // [1] FIRST CLICK: Show Specific Options
     if (action === 'pre') {
       const userId = parts[2];
       
@@ -70,7 +119,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // [2] SECOND CLICK: Execute Action with Reason
     if (action === 'confirm') {
       if (subAction === 'approve') {
         const userId = parts[2];
@@ -86,8 +134,6 @@ export async function POST(req: Request) {
         const finalReason = reasonCode === 'BADCARD' ? 'FAILED: BAD CARD' : 'FAILED: WRONG CODE';
         
         const res = await rejectDeposit(tgtUser, finalReason, true);
-        
-        // 🚨 UPGRADE: It will now tell you EXACTLY why it failed
         const status = res.success 
           ? `❌ <b>Declined:</b> ${finalReason}` 
           : `⚠️ <b>Error:</b> ${res.error || 'System fault'}`;
@@ -96,12 +142,9 @@ export async function POST(req: Request) {
       }
     }
 
-    // [3] CANCEL CLICK: Reset to original buttons
     if (action === 'cancel') {
       const userId = parts[2];
       const amount = parts[3];
-      
-      // Cleanly strip away the confirmation question
       const cleanText = originalText.split('\n\n❓')[0];
       
       await updateTgUI(cleanText, [
@@ -112,7 +155,6 @@ export async function POST(req: Request) {
       ]);
     }
 
-    // Acknowledge the callback so the button stops loading
     await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -645,24 +645,81 @@ export async function submitSupportTicket(formData: FormData) {
     }
     console.log("✅ [4] Saved to DB! Ticket ID:", ticket.id.slice(0, 8));
 
-    console.log("➡️ [5] Sending to Telegram...");
-    const supportThread = process.env.TELEGRAM_SUPPORT_THREAD_ID; 
+    console.log("➡️ [5] Creating Dynamic Folder in Telegram...");
     
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const groupChatId = process.env.TELEGRAM_CHAT_ID;
+    
+    const shortId = ticket.id.slice(0, 8).toUpperCase();
+    const topicName = `🎫 TICKET #${shortId}`;
+    
+    // Explicitly declare as string
+    let dynamicThreadId: string | undefined = undefined;
+
+    try {
+      const topicRes = await fetch(`https://api.telegram.org/bot${botToken}/createForumTopic`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          chat_id: groupChatId, 
+          name: topicName 
+        })
+      });
+      const topicData = await topicRes.json();
+      
+      if (topicData.ok) {
+        // 🚨 FIX: Force Telegram's integer into a strict String
+        dynamicThreadId = topicData.result.message_thread_id.toString(); 
+        console.log(`✅ Folder Created! Thread ID: ${dynamicThreadId}`);
+      } else {
+        console.error("❌ Telegram refused to create folder:", topicData);
+      }
+    } catch (err) {
+      console.error("❌ Failed to contact Telegram API:", err);
+    }
+
     const caption = `🚨 <b>NEW SUPPORT TICKET</b>\n\n` +
                     `👤 <b>User:</b> <code>${user.id.slice(0, 8)}</code>\n` +
-                    `🎫 <b>Ticket:</b> #${ticket.id.slice(0, 8).toUpperCase()}\n` +
+                    `🎫 <b>Ticket:</b> #${shortId}\n` +
                     `🏷️ <b>Category:</b> ${category}\n\n` +
                     `💬 <b>Message:</b>\n<i>${message}</i>`;
 
     if (imageFile && imageFile.size > 0) {
-      await sendTelegramPhoto(imageFile, caption, undefined, supportThread);
+      await sendTelegramPhoto(imageFile, caption, undefined, dynamicThreadId);
     } else {
-      await sendTelegramAlert(caption, undefined, supportThread);
+      await sendTelegramAlert(caption, undefined, dynamicThreadId);
     }
-    console.log("✅ [5] Telegram Notification Sent!");
-
-    return { success: true };
     
+    console.log("✅ [5] Ticket routed perfectly!");
+    
+    // 🚨 NEW: 4. Save the Thread ID and log the first message into the Chat History
+    // 🚨 THE FIX: Use Admin Client to bypass RLS and force the save!
+    const adminSupabase = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    if (dynamicThreadId) {
+      const { error: updateErr } = await adminSupabase
+        .from('tickets')
+        .update({ telegram_thread_id: dynamicThreadId })
+        .eq('id', ticket.id);
+        
+      if (updateErr) console.error("❌ Failed to link Folder ID:", updateErr);
+    }
+
+    // Insert the first message into the live chat table using Admin Privileges
+    await adminSupabase.from('ticket_messages').insert([{
+      ticket_id: ticket.id,
+      sender_type: 'USER',
+      message: message
+    }]);
+
+    console.log("✅ [6] Chat History Initialized and Linked!");
+    
+    return { success: true };
+
+
   } catch (err: any) {
     console.error("❌ [FATAL CRASH]:", err);
     return { error: err.message || "Unknown Server Crash" };
@@ -670,16 +727,17 @@ export async function submitSupportTicket(formData: FormData) {
 }
 
 /**
- * [15] GET MY TICKETS
+ * [15] GET MY TICKETS (Upgraded for Chat History)
  */
 export async function getMyTickets() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
+  // Grab the ticket AND all its messages at the same time
   const { data, error } = await supabase
     .from('tickets')
-    .select('*')
+    .select('*, ticket_messages(*)')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
@@ -689,8 +747,45 @@ export async function getMyTickets() {
     id: t.id,
     display_id: t.id.slice(0, 8).toUpperCase(),
     category: t.category,
-    message: t.message,
     status: t.status,
-    created_at: t.created_at
+    created_at: t.created_at,
+    // Sort the messages chronologically (oldest at top, newest at bottom)
+    messages: (t.ticket_messages || []).sort((a: any, b: any) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    )
   }));
+}
+
+/**
+ * [16] USER REPLY TO TICKET
+ */
+export async function replyToTicket(ticketId: string, message: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "AUTH_REQUIRED" };
+
+  // 1. Save user's message to DB
+  await supabase.from('ticket_messages').insert([{
+    ticket_id: ticketId,
+    sender_type: 'USER',
+    message: message
+  }]);
+
+  // 2. Change status back to OPENED so you know they replied
+  await supabase.from('tickets').update({ status: 'OPENED' }).eq('id', ticketId);
+
+  // 3. Get the Telegram Folder ID for this ticket
+  const { data: ticket } = await supabase
+    .from('tickets')
+    .select('telegram_thread_id')
+    .eq('id', ticketId)
+    .single();
+  
+  // 4. Send their message directly into that specific Telegram Folder
+  if (ticket?.telegram_thread_id) {
+     const caption = `👤 <b>User Reply:</b>\n<i>${message}</i>`;
+     await sendTelegramAlert(caption, undefined, ticket.telegram_thread_id);
+  }
+
+  return { success: true };
 }

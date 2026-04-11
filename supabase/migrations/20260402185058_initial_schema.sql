@@ -87,3 +87,29 @@ WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can view own tickets" 
 ON tickets FOR SELECT 
 USING (auth.uid() = user_id);  
+
+
+-- 1. Add a column to track which Telegram Folder belongs to this ticket
+ALTER TABLE tickets ADD COLUMN telegram_thread_id TEXT;
+
+-- 2. Create the Chat History table
+CREATE TABLE ticket_messages (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    ticket_id UUID REFERENCES tickets(id) ON DELETE CASCADE,
+    sender_type TEXT NOT NULL CHECK (sender_type IN ('USER', 'ADMIN')),
+    message TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 3. Lock it down with Security (RLS)
+ALTER TABLE ticket_messages ENABLE ROW LEVEL SECURITY;
+
+-- Allow users to read messages only for their own tickets
+CREATE POLICY "Users can view own ticket messages"
+ON ticket_messages FOR SELECT
+USING ( ticket_id IN (SELECT id FROM tickets WHERE user_id = auth.uid()) );
+
+-- Allow users to send messages only to their own tickets
+CREATE POLICY "Users can send messages"
+ON ticket_messages FOR INSERT
+WITH CHECK ( ticket_id IN (SELECT id FROM tickets WHERE user_id = auth.uid()) );
