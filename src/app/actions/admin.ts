@@ -300,9 +300,9 @@ export async function approveDeposit(depositId: string, userId: string, amount: 
  * [7] DEPOSIT_VERIFY: REJECT_CLAIM (Scrubbed & Silent)
  */
 export async function rejectDeposit(identifier: string, reason: string = 'FAILED', isTelegram: boolean = false) {
+  // We use your existing getAdminClient() which ALREADY has God-Mode
   const supabase = getAdminClient();
 
-  // If not triggered via the Telegram Webhook, enforce the standard web session check
   if (!isTelegram) {
     const isAuthorized = await checkAdminBypass();
     if (!isAuthorized) return { success: false, error: "Unauthorized access" };
@@ -310,10 +310,8 @@ export async function rejectDeposit(identifier: string, reason: string = 'FAILED
 
   let targetId = identifier;
 
-  // Telegram only passes the user_id via callback data due to byte limits.
-  // We locate their most recent pending deposit to apply the rejection.
   if (isTelegram) {
-     const { data } = await supabase
+     const { data, error: findError } = await supabase
         .from('deposits')
         .select('id')
         .eq('user_id', identifier)
@@ -322,17 +320,19 @@ export async function rejectDeposit(identifier: string, reason: string = 'FAILED
         .limit(1)
         .maybeSingle();
 
+     if (findError) return { success: false, error: `Find Error: ${findError.message}` };
      if (!data) return { success: false, error: "No pending request found." };
+     
      targetId = data.id;
   }
 
-  // Apply the specific rejection reason to the database
+  // Execute the final update
   const { error } = await supabase
     .from('deposits')
     .update({ status: reason })
     .eq('id', targetId);
 
-  if (error) return { success: false, error: "Could not update record." };
+  if (error) return { success: false, error: `Supabase Error: ${error.message}` };
   return { success: true };
 }
 

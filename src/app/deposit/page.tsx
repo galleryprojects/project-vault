@@ -119,11 +119,11 @@ export default function DepositPage() {
           <h1 className="text-2xl font-black italic tracking-tighter uppercase text-primary leading-none">Sy Exclusive</h1>
           <div className="mt-4 space-y-2">
             {/* UPDATED $20 HARD DECK WARNING */}
-            <div className="inline-block p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-              <p className="text-[11px] font-bold text-red-500 uppercase tracking-[0.1em] flex items-center gap-2">
+            <div className="w-[60%] p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+              <p className="text-[5px] font-bold text-red-500 uppercase tracking-[0.1em] flex items-center gap-2">
                 <span>⚠️</span> Minimum Deposit Is: $20.00
               </p>
-              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mt-1">
+              <p className="text-[5px] font-semibold text-gray-500 uppercase tracking-widest mt-1">
                 Any lesser value will be rejected by the network.
               </p>
             </div>
@@ -139,13 +139,18 @@ export default function DepositPage() {
               disabled={isRefreshing}
               className={`p-2 rounded-full border border-gray-100 hover:bg-gray-50 transition-all ${isRefreshing ? 'animate-spin' : ''}`}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
-                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path>
-                <path d="M21 3v5h-5"></path>
-              </svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21v-5h5"/></svg>
             </button>
           </div>
+          {/* DEPOSIT HISTORY BUTTON (OPENS IN NEW TAB) */}
+          <button 
+            onClick={() => window.open('/orders?tab=DEPOSIT', '_blank')}
+            className="mt-3 text-[9px] font-black uppercase tracking-widest text-primary border border-primary/20 px-4 py-2 rounded-full hover:bg-primary/5 transition-colors"
+          >
+            Deposit History
+          </button>
         </div>
+
       </div>
 
       <div className="z-10 w-full max-w-md px-6 space-y-6 pb-20">

@@ -344,23 +344,24 @@ export async function getLedger() {
       title: item.item_name,
       amount: item.amount,
       status: item.status,
-      date: new Date(item.created_at).toLocaleDateString(),
+      date: item.created_at, // <-- FIX: Passing the RAW timestamp
       mediaUrl: item.media_url,
-      tier: item.tier // [NEW FIX] Export the tier so the homepage knows!
+      tier: item.tier 
     })),
     ...(depositsRes.data || []).map(item => ({
       id: item.id, 
-      displayId: item.code || 'INTAKE',
+      displayId: item.id.toString().slice(0, 8).toUpperCase(),
       type: 'DEPOSIT',
       title: `${item.platform || 'SYSTEM'} PAYMENT`,
       amount: item.amount || 0,
       status: item.status,
-      date: new Date(item.created_at).toLocaleDateString(),
+      date: item.created_at, // <-- FIX: Passing the RAW timestamp
       mediaUrl: null,
       tier: null
     }))
   ];
 
+  // FIX: Sorting by the raw timestamp guarantees exact chronological order
   return history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 

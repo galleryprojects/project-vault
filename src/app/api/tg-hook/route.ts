@@ -86,7 +86,12 @@ export async function POST(req: Request) {
         const finalReason = reasonCode === 'BADCARD' ? 'FAILED: BAD CARD' : 'FAILED: WRONG CODE';
         
         const res = await rejectDeposit(tgtUser, finalReason, true);
-        const status = res.success ? `❌ <b>Declined:</b> ${finalReason}` : `⚠️ <b>Error:</b> Update failed.`;
+        
+        // 🚨 UPGRADE: It will now tell you EXACTLY why it failed
+        const status = res.success 
+          ? `❌ <b>Declined:</b> ${finalReason}` 
+          : `⚠️ <b>Error:</b> ${res.error || 'System fault'}`;
+          
         await updateTgUI(`${originalText}\n\n${status}`);
       }
     }
