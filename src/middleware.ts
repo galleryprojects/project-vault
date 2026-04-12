@@ -4,7 +4,6 @@ import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
-  const hostname = request.nextUrl.hostname || '';
 
   // [1] STATIC & RESTRICTED BYPASS
   if (
@@ -16,14 +15,17 @@ export function middleware(request: NextRequest) {
 
   // [2] USA ONLY RESTRICTION
   const country = request.headers.get('cf-ipcountry');
-  const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+  
+  // 🚨 THE REAL PRO FIX: Never trust hostname on a Docker/Railway container. 
+  // Trust the environment variables instead.
+  const isLocalDev = process.env.NODE_ENV === 'development';
 
-  // 🚀 LOCAL BYPASS ONLY (Webhook bypass removed because /api is ignored by matcher)
-  if (isLocal) {
+  // 🚀 LOCAL BYPASS ONLY (Works because 'npm run dev' sets this to development)
+  if (isLocalDev) {
     return NextResponse.next();
   }
 
-  // 🔒 THE LOCKDOWN: If country is NOT US (or missing) -> BLOCK.
+  // 🔒 THE LOCKDOWN: If on Railway (production) and country is NOT US -> BLOCK.
   if (country !== 'US') {
     return NextResponse.redirect(new URL('/restricted', request.url));
   }
@@ -42,6 +44,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Webhooks in /api are naturally immune to this middleware
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };
