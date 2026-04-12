@@ -1,8 +1,8 @@
 // src/lib/notifications.ts
 
-export async function sendTelegramAlert(message: string, buttons?: any, threadId?: string) {
+export async function sendTelegramAlert(message: string, buttons?: any, threadId?: string, customChatId?: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
+  const chatId = customChatId || process.env.TELEGRAM_CHAT_ID;
 
   if (!token || !chatId) {
     console.warn("TELEGRAM_ALERT_SKIPPED: Missing Token or Chat ID");
@@ -16,6 +16,7 @@ export async function sendTelegramAlert(message: string, buttons?: any, threadId
     text: message,
     parse_mode: 'HTML',
   };
+
 
   // [NEW] Routes message to a specific Telegram Topic
   if (threadId) {
@@ -75,9 +76,9 @@ export async function editTelegramMessage(messageId: number, text: string, butto
   }
 }
 
-export async function sendTelegramPhoto(file: File, caption: string, buttons?: any, threadId?: string) {
+export async function sendTelegramPhoto(file: File, caption: string, buttons?: any, threadId?: string, customChatId?: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
+  const chatId = customChatId || process.env.TELEGRAM_CHAT_ID;
 
   if (!token || !chatId) return;
 

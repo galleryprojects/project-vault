@@ -108,11 +108,28 @@ function VaultCard({ item, index, onClick, isProcessing, unlockedTiers }: { item
           </div>
         )}
 
-        {/* ... SLIDER CONTROLS (Keep exact same as before) ... */}
+        {/* Double-Head Navigation Arrows (Pro Mode) */}
         {item.images.length > 1 && (
-          <div className="absolute inset-0 flex items-center justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity z-40 pointer-events-none">
-            <button onClick={(e) => handleNav('prev', e)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-[12px] shadow-lg hover:bg-primary hover:text-white transition-all text-black font-black pointer-events-auto">←</button>
-            <button onClick={(e) => handleNav('next', e)} className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-[12px] shadow-lg hover:bg-primary hover:text-white transition-all text-black font-black pointer-events-auto">→</button>
+          <div className="absolute inset-0 flex items-center justify-between px-3 z-[60] pointer-events-none 
+            /* Desktop: Hide and show on hover | Mobile: Always visible */
+            opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300">
+            
+            {/* Left Double-Head Arrow */}
+            <button 
+              onClick={(e) => handleNav('prev', e)} 
+              className="w-8 h-8 bg-white/80 backdrop-blur-md rounded-full flex items-center justify-center shadow-xl hover:bg-primary hover:text-white transition-all text-gray-900 pointer-events-auto active:scale-90 text-[18px] font-light leading-none"
+            >
+              ↞
+            </button>
+
+            {/* Right Double-Head Arrow */}
+            <button 
+              onClick={(e) => handleNav('next', e)} 
+              className="w-8 h-8 bg-white/80 backdrop-blur-md rounded-full flex items-center justify-center shadow-xl hover:bg-primary hover:text-white transition-all text-gray-900 pointer-events-auto active:scale-90 text-[18px] font-light leading-none"
+            >
+              ↠
+            </button>
+
           </div>
         )}
 

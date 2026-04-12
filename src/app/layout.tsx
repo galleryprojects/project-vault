@@ -1,20 +1,22 @@
 import { Metadata } from 'next';
 import './globals.css';
+import DepositInterceptor from '@/components/DepositInterceptor';
 
 export const metadata: Metadata = {
   title: "SY Exclusives | The Vault",
   description: "Exclusive digital collections and private media vaults.",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      {/* Removed the Cloud Bypass so the local Pink Theme works */}
-      <body className="antialiased m-0 p-0 overflow-x-hidden">{children}</body>
+      <body>
+        {/* This runs in the background globally */}
+        <DepositInterceptor /> 
+        
+        {children}
+      </body>
     </html>
-  )
+  );
 }

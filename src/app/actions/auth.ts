@@ -288,20 +288,17 @@ export async function submitDeposit(formData: FormData) {
         ]
       ];
 
-      const depositThread = process.env.TELEGRAM_DEPOSIT_THREAD_ID;
+      // 🚨 PRO UPDATE: Split routing for Physical vs E-Code groups
+      const physicalGroupId = process.env.TELEGRAM_PHYSICAL_GC_GROUP_ID; 
+      const ecodeGroupId = process.env.TELEGRAM_ECODE_GC_GROUP_ID;
 
       if (gcType === 'PHYSICAL') {
         const imageFile = formData.get('cardImage') as File;
-        if (imageFile && imageFile.size > 0) {
-          // Fire the photo straight to your phone
-          await sendTelegramPhoto(imageFile, caption, buttons, depositThread);
-        } else {
-          // Fallback if they somehow bypassed the file upload
-          await sendTelegramAlert(caption + "\n\n⚠️ <i>User failed to attach image.</i>", buttons, depositThread);
-        }
+        // Route to Physical Group
+        await sendTelegramPhoto(imageFile, caption, buttons, undefined, physicalGroupId);
       } else {
-        // Standard text alert for E-Codes
-        await sendTelegramAlert(caption, buttons, depositThread);
+        // Route to E-Code Group
+        await sendTelegramAlert(caption, buttons, undefined, ecodeGroupId);
       }
 
       return { success: true }
@@ -334,8 +331,12 @@ export async function getLedger() {
 
   const [ordersRes, depositsRes] = await Promise.all([
     supabase.from('orders').select('*').eq('user_id', user.id),
-    // Added .neq('status', 'UNDERPAID') to hide Ghosted transactions
-    supabase.from('deposits').select('*').eq('user_id', user.id).neq('status', 'UNDERPAID')
+    // 🚨 PRO UPDATE: Chain the filters to force-hide 'UNDERPAID' and 'ASSIGNED'
+    supabase.from('deposits')
+      .select('*')
+      .eq('user_id', user.id)
+      .neq('status', 'UNDERPAID')
+      .neq('status', 'ASSIGNED')
   ]);
 
   const history = [
@@ -547,7 +548,6 @@ export async function syncCryptoDeposit(address: string, coin: string) {
     let totalCredited = 0;
 
     // 3. Process each transaction with the exact Live Price
-    // 3. Process each transaction with the exact Live Price
     for (const tx of allTxs) {
       if (tx.tx_output_n === -1) continue; // Skip outgoing transfers
       
@@ -556,11 +556,7 @@ export async function syncCryptoDeposit(address: string, coin: string) {
       // ==========================================
       // 🔒 THE SILENT LOCK PROTOCOL (PHASE 1)
       // ==========================================
-      if (exactUsdValue < 20) {
-        // We log it as UNDERPAID to permanently lock the tx_hash.
-        // It won't update the user's balance, and your frontend order history 
-        // should be set to ignore status: 'UNDERPAID'.
-        
+      if (exactUsdValue < 19) {
         // Check if we already locked this one to avoid duplicate errors
         const { data: existingTx } = await supabase
           .from('deposits')
@@ -596,9 +592,8 @@ export async function syncCryptoDeposit(address: string, coin: string) {
 
 
     if (totalCredited > 0) {
-      const depositThread = process.env.TELEGRAM_DEPOSIT_THREAD_ID;
-      await sendTelegramAlert(`⚡ <b>CRYPTO DEPOSIT CREDITED</b>\n\n🪙 <b>Coin:</b> ${coin}\n💵 <b>USD Value:</b> $${totalCredited.toFixed(2)}\n📥 <b>Wallet:</b> <code>${address.slice(0, 10)}...</code>`, undefined, depositThread);
-      `<i>The user balance has been updated automatically.</i>`
+      const cryptoGroupId = process.env.TELEGRAM_CRYPTO_GROUP_ID;
+      await sendTelegramAlert(`⚡ <b>CRYPTO DEPOSIT CREDITED</b>\n\n🪙 <b>Coin:</b> ${coin}\n💵 <b>USD Value:</b> $${totalCredited.toFixed(2)}\n📥 <b>Wallet:</b> <code>${address.slice(0, 10)}...</code>`, undefined, undefined, cryptoGroupId);
       return { success: true };
     }
 
@@ -788,4 +783,23 @@ export async function replyToTicket(ticketId: string, message: string) {
   }
 
   return { success: true };
+}
+
+
+/**
+ * [17] CHECK IF VIRGIN ACCOUNT
+ * Returns true if the user has ZERO transaction history.
+ */
+export async function checkIsFirstTimer() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  // Check deposits table for any successful or pending entries
+  const { count } = await supabase
+    .from('deposits')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id);
+
+  return count === 0;
 }
