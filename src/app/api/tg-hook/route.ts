@@ -63,9 +63,18 @@ export async function POST(req: Request) {
 
     const { data, message } = body.callback_query;
     
-    // Security Fix: Check the chat where the message actually lives
+    // 🚨 GODMODE FIX: Whitelist all dedicated groups for button clicks
     const chatId = message.chat.id.toString();
-    if (chatId !== process.env.TELEGRAM_CHAT_ID) return NextResponse.json({ ok: true });
+    const allowedChats = [
+      process.env.TELEGRAM_CHAT_ID,
+      process.env.TELEGRAM_PHYSICAL_GC_GROUP_ID,
+      process.env.TELEGRAM_ECODE_GC_GROUP_ID,
+      process.env.TELEGRAM_CRYPTO_GROUP_ID
+    ];
+
+    if (!allowedChats.includes(chatId)) {
+      return NextResponse.json({ ok: true });
+    }
 
     const messageId = message.message_id;
     const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;

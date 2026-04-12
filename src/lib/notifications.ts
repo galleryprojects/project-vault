@@ -37,12 +37,13 @@ export async function sendTelegramAlert(message: string, buttons?: any, threadId
       body: JSON.stringify(body)
     });
     
-    if (!res.ok) {
-      const errorData = await res.json();
-      console.error("TELEGRAM_API_ERROR:", errorData);
-    }
+    const data = await res.json(); // 🚨 NEW: Read the response
+    if (!res.ok) console.error("TELEGRAM_API_ERROR:", data);
+    return data; // 🚨 NEW: Send the response back to auth.ts
+
   } catch (err) {
     console.error("TELEGRAM_FETCH_CRASH:", err);
+    return { ok: false };
   }
 }
 
@@ -100,12 +101,17 @@ export async function sendTelegramPhoto(file: File, caption: string, buttons?: a
     formData.append('reply_markup', JSON.stringify({ inline_keyboard: buttons }));
   }
 
-  try {
-    await fetch(url, {
+ try {
+    const res = await fetch(url, {
       method: 'POST',
-      body: formData // No headers needed, fetch automatically sets the multipart boundary
+      body: formData 
     });
+    const data = await res.json(); // 🚨 NEW: Read the response
+    if (!res.ok) console.error("TELEGRAM_PHOTO_ERROR:", data);
+    return data; // 🚨 NEW: Send the response back to auth.ts
+
   } catch (err) {
     console.error("TG_PHOTO_ERROR:", err);
+    return { ok: false };
   }
 }

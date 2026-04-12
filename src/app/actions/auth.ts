@@ -170,6 +170,7 @@ export async function submitDeposit(formData: FormData) {
   const rawAmount = formData.get('amount');
   const amount = rawAmount ? parseFloat(rawAmount as string) : null; 
 
+
   try {
     
     if (method === 'CRYPTO') {
@@ -254,12 +255,11 @@ export async function submitDeposit(formData: FormData) {
     // Inside submitDeposit...
     if (method === 'GIFTCARD') {
       const platform = formData.get('platform') as string;
-      const gcType = formData.get('gcType') as string; // 'ECODE' or 'PHYSICAL'
-      
-      // If it's a physical card, we just save a placeholder to the DB to keep it clean
+      const gcType = formData.get('gcType') as string; 
       const code = gcType === 'PHYSICAL' ? '[ PHYSICAL UPLOAD ]' : formData.get('code') as string;
 
-      const { error: dbError } = await supabase
+      // 1. Insert Deposit & Grab the ID
+      const { data: depositRecord, error: dbError } = await supabase
         .from('deposits')
         .insert([{
           user_id: user.id,
@@ -268,11 +268,59 @@ export async function submitDeposit(formData: FormData) {
           code: code,
           amount: amount,
           status: 'PENDING'
-        }]);
+        }])
+        .select()
+        .single();
 
       if (dbError) throw dbError;
 
-      // --- THE TELEGRAM NOTIFICATION ROUTING ---
+      // 🚨 GODMODE: Dynamic "Topic-Per-User" Routing
+      const targetGroupId = gcType === 'PHYSICAL' ? process.env.TELEGRAM_PHYSICAL_GC_GROUP_ID : process.env.TELEGRAM_ECODE_GC_GROUP_ID;
+      let userThreadId: string | undefined = undefined;
+
+      try {
+        const adminSupabase = createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+        
+        // Find if this user already has a topic in THIS specific group
+        let query = adminSupabase.from('deposits')
+            .select('telegram_thread_id')
+            .eq('user_id', user.id)
+            .not('telegram_thread_id', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(1);
+            
+        // Keep Physical and E-Code folders strictly separated
+        if (gcType === 'PHYSICAL') query = query.eq('code', '[ PHYSICAL UPLOAD ]');
+        else query = query.neq('code', '[ PHYSICAL UPLOAD ]');
+        
+        const { data: previous } = await query;
+
+        if (previous && previous.length > 0 && previous[0].telegram_thread_id) {
+           userThreadId = previous[0].telegram_thread_id; // Reuse existing folder
+        } else {
+           // Create NEW User Folder
+           const botToken = process.env.TELEGRAM_BOT_TOKEN;
+           const shortId = user.id.slice(0, 8).toUpperCase();
+           const topicName = `👤 USER ${shortId}`;
+           
+           const topicRes = await fetch(`https://api.telegram.org/bot${botToken}/createForumTopic`, {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ chat_id: targetGroupId, name: topicName })
+           });
+           const topicData = await topicRes.json();
+           
+           if (topicData.ok) {
+             userThreadId = topicData.result.message_thread_id.toString();
+             // Save it so we reuse it next time!
+             await adminSupabase.from('deposits').update({ telegram_thread_id: userThreadId }).eq('id', depositRecord.id);
+           }
+        }
+      } catch (err) {
+        console.log("Topic Engine Bypassed (Did you run the SQL command?)");
+      }
+
+      // --- TELEGRAM NOTIFICATION ---
       const caption = `🚨 <b>New Gift Card Submission</b>\n\n` +
                       `👤 <b>User:</b> <code>${user.id.slice(0, 8)}</code>\n` +
                       `💳 <b>Brand:</b> ${platform}\n` +
@@ -280,25 +328,55 @@ export async function submitDeposit(formData: FormData) {
                       `📝 <b>Format:</b> ${gcType}\n` +
                       (gcType === 'ECODE' ? `🔑 <b>Code:</b> <code>${code}</code>` : ``);
 
-      // The Double-Tap buttons
-      const buttons = [
-        [
+      const buttons = [[
           { text: "Approve", callback_data: `pre_approve_${user.id}_${amount}` },
           { text: "Decline", callback_data: `pre_reject_${user.id}` }
-        ]
-      ];
+      ]];
 
-      // 🚨 PRO UPDATE: Split routing for Physical vs E-Code groups
-      const physicalGroupId = process.env.TELEGRAM_PHYSICAL_GC_GROUP_ID; 
-      const ecodeGroupId = process.env.TELEGRAM_ECODE_GC_GROUP_ID;
-
+      // 1. Try to send to the saved folder
+      let tgResult;
       if (gcType === 'PHYSICAL') {
         const imageFile = formData.get('cardImage') as File;
-        // Route to Physical Group
-        await sendTelegramPhoto(imageFile, caption, buttons, undefined, physicalGroupId);
+        tgResult = await sendTelegramPhoto(imageFile, caption, buttons, userThreadId, targetGroupId);
       } else {
-        // Route to E-Code Group
-        await sendTelegramAlert(caption, buttons, undefined, ecodeGroupId);
+        tgResult = await sendTelegramAlert(caption, buttons, userThreadId, targetGroupId);
+      }
+
+      // ==========================================
+      // 🚨 GODMODE: SELF-HEALING PROTOCOL
+      // ==========================================
+      if (tgResult && tgResult.ok === false && tgResult.description?.includes('thread not found')) {
+        console.log("⚠️ Dead Folder Detected! Rebuilding user folder automatically...");
+        
+        const botToken = process.env.TELEGRAM_BOT_TOKEN;
+        const shortId = user.id.slice(0, 8).toUpperCase();
+        const adminSupabase = createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+
+        // 2. Build a brand new topic in Telegram
+        const topicRes = await fetch(`https://api.telegram.org/bot${botToken}/createForumTopic`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: targetGroupId, name: `👤 USER ${shortId}` })
+        });
+        const topicData = await topicRes.json();
+        console.log("X-RAY - TOPIC CREATION RESPONSE:", topicData);
+
+        if (topicData.ok) {
+          const newThreadId = topicData.result.message_thread_id.toString();
+          
+          // 3. Heal the Database: Wipe old dead IDs and assign the new healthy one
+          await adminSupabase.from('deposits')
+            .update({ telegram_thread_id: newThreadId })
+            .eq('user_id', user.id);
+
+          // 4. Resend the original message to the new folder
+          if (gcType === 'PHYSICAL') {
+            await sendTelegramPhoto(formData.get('cardImage') as File, caption, buttons, newThreadId, targetGroupId);
+          } else {
+            await sendTelegramAlert(caption, buttons, newThreadId, targetGroupId);
+          }
+          console.log("✅ Self-Healing Complete. Folder regenerated and message delivered.");
+        }
       }
 
       return { success: true }
@@ -556,7 +634,7 @@ export async function syncCryptoDeposit(address: string, coin: string) {
       // ==========================================
       // 🔒 THE SILENT LOCK PROTOCOL (PHASE 1)
       // ==========================================
-      if (exactUsdValue < 19) {
+      if (exactUsdValue < 9.68) {
         // Check if we already locked this one to avoid duplicate errors
         const { data: existingTx } = await supabase
           .from('deposits')
@@ -593,17 +671,80 @@ export async function syncCryptoDeposit(address: string, coin: string) {
 
     if (totalCredited > 0) {
       const cryptoGroupId = process.env.TELEGRAM_CRYPTO_GROUP_ID;
-      await sendTelegramAlert(`⚡ <b>CRYPTO DEPOSIT CREDITED</b>\n\n🪙 <b>Coin:</b> ${coin}\n💵 <b>USD Value:</b> $${totalCredited.toFixed(2)}\n📥 <b>Wallet:</b> <code>${address.slice(0, 10)}...</code>`, undefined, undefined, cryptoGroupId);
+      let userThreadId: string | undefined = undefined;
+      let depInfo: any = null;
+      const adminSupabase = createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+
+      try {
+        // 1. Get user ID and check for existing crypto folder
+        const { data } = await adminSupabase.from('deposits').select('user_id, telegram_thread_id').eq('address', address).limit(1).single();
+        depInfo = data;
+        
+        if (depInfo?.telegram_thread_id) {
+           userThreadId = depInfo.telegram_thread_id;
+        } else if (depInfo?.user_id) {
+           // Create the very first Crypto topic for this user
+           const botToken = process.env.TELEGRAM_BOT_TOKEN;
+           const shortId = depInfo.user_id.slice(0, 8).toUpperCase();
+           const topicRes = await fetch(`https://api.telegram.org/bot${botToken}/createForumTopic`, {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ chat_id: cryptoGroupId, name: `👤 CRYPTO | ${shortId}` })
+           });
+           const topicData = await topicRes.json();
+           
+           if (topicData.ok) {
+             userThreadId = topicData.result.message_thread_id.toString();
+             await adminSupabase.from('deposits').update({ telegram_thread_id: userThreadId }).eq('address', address);
+           }
+        }
+      } catch(e) {}
+
+      // 2. Try to send to the saved/new folder
+      const alertMsg = `⚡ <b>CRYPTO DEPOSIT CREDITED</b>\n\n🪙 <b>Coin:</b> ${coin}\n💵 <b>USD Value:</b> $${totalCredited.toFixed(2)}\n📥 <b>Wallet:</b> <code>${address.slice(0, 10)}...</code>`;
+      let tgResult = await sendTelegramAlert(alertMsg, undefined, userThreadId, cryptoGroupId);
+
+      // ==========================================
+      // 🚨 GODMODE: CRYPTO SELF-HEALING PROTOCOL
+      // ==========================================
+      if (tgResult && tgResult.ok === false && tgResult.description?.includes('thread not found')) {
+        console.log("⚠️ Dead Crypto Folder Detected! Rebuilding automatically...");
+        
+        const botToken = process.env.TELEGRAM_BOT_TOKEN;
+        const shortId = depInfo?.user_id ? depInfo.user_id.slice(0, 8).toUpperCase() : address.slice(0,8).toUpperCase();
+
+        // 3. Build a brand new topic
+        const topicRes = await fetch(`https://api.telegram.org/bot${botToken}/createForumTopic`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: cryptoGroupId, name: `👤 CRYPTO | ${shortId}` })
+        });
+        const topicData = await topicRes.json();
+
+        if (topicData.ok) {
+          const newThreadId = topicData.result.message_thread_id.toString();
+          
+          // 4. Heal the Database
+          await adminSupabase.from('deposits').update({ telegram_thread_id: newThreadId }).eq('address', address);
+
+          // 5. Resend the message to the new folder
+          await sendTelegramAlert(alertMsg, undefined, newThreadId, cryptoGroupId);
+          console.log("✅ Crypto Self-Healing Complete.");
+        }
+      }
+
       return { success: true };
     }
 
     return { success: false, error: "All visible transactions have already been credited." };
+
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : "Unknown error";
     console.error("SYNC_ERROR:", errMsg);
     return { success: false, error: "Check failed. Ensure network is stable." };
   }
 }
+
 
 
 /**

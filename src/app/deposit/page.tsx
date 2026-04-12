@@ -121,7 +121,7 @@ export default function DepositPage() {
             {/* UPDATED $20 HARD DECK WARNING */}
             <div className="w-[60%] p-3 rounded-lg bg-red-500/10 border border-red-500/20">
               <p className="text-[5px] font-bold text-red-500 uppercase tracking-[0.1em] flex items-center gap-2">
-                <span>⚠️</span> Minimum Deposit Is: $20.00
+                <span>⚠️</span> Minimum Deposit Is: $10.00
               </p>
               <p className="text-[5px] font-semibold text-gray-500 uppercase tracking-widest mt-1">
                 Any lesser value will be rejected by the network.
